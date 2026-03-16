@@ -6,51 +6,56 @@ import plotly.graph_objects as go
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="AI Sales Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# --- THEME SELECTION LOGIC ---
-with st.sidebar:
-    st.markdown("### 🎨 DASHBOARD THEME")
-    theme_choice = st.selectbox("Choose Visual Style", ["Original Pink/Blue", "Emerald Executive", "Midnight Neon", "Royal Gold"])
-
-# Theme Color Mapping
-themes = {
-    "Original Pink/Blue": {"p": "#F7A8B8", "s": "#5DADE2", "bg": "#FFFFFF", "text": "#2C3E50"},
-    "Emerald Executive": {"p": "#27AE60", "s": "#2C3E50", "bg": "#F4F9F4", "text": "#1B2631"},
-    "Midnight Neon": {"p": "#BB86FC", "s": "#03DAC6", "bg": "#121212", "text": "#FFFFFF"},
-    "Royal Gold": {"p": "#D4AF37", "s": "#1B2631", "bg": "#FFFFFF", "text": "#1B2631"}
-}
-
-P_COLOR = themes[theme_choice]["p"]
-S_COLOR = themes[theme_choice]["s"]
-BG_COLOR = themes[theme_choice]["bg"]
-TXT_COLOR = themes[theme_choice]["text"]
-
-# --- ADVANCED CSS FOR CREATIVE STYLING ---
-st.markdown(f"""
+# --- CUSTOM CSS FOR HIGH-FIDELITY REPLICA ---
+st.markdown("""
     <style>
-        .stApp {{ background-color: {BG_COLOR}; color: {TXT_COLOR}; }}
-        .block-container {{ padding-top: 2rem; padding-bottom: 0rem; }}
-        
-        /* Title Styling */
-        .main-header {{
-            font-size: 28px !important;
-            font-weight: bold;
-            color: {TXT_COLOR};
-            margin-bottom: 20px;
-        }}
+        /* Background and Global Font */
+        .stApp { background-color: #F0F2F6; font-family: 'Inter', sans-serif; }
+        .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+
+        /* Sidebar Styling to match image */
+        section[data-testid="stSidebar"] {
+            background-color: #FFFFFF !important;
+            border-right: 1px solid #E0E0E0;
+        }
+        .sidebar-box {
+            background-color: #E3F2FD;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #BBDEFB;
+        }
+        .sidebar-box-pink {
+            background-color: #FCE4EC;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #F8BBD0;
+        }
 
         /* Metric Card Styling */
-        div[data-testid="stMetric"] {{
-            background-color: {"#1E1E1E" if theme_choice == "Midnight Neon" else "#FFFFFF"};
-            border: 1px solid {P_COLOR};
-            border-radius: 12px;
-            padding: 10px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        }}
-        div[data-testid="stMetricValue"] {{ font-size: 20px !important; color: {S_COLOR} !important; }}
-        div[data-testid="stMetricLabel"] {{ color: {TXT_COLOR} !important; }}
+        div[data-testid="stMetric"] {
+            background-color: #ffffff;
+            border: 1px solid #E0E0E0;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        }
+        div[data-testid="stMetricValue"] { font-size: 24px !important; font-weight: bold !important; color: #2C3E50 !important; }
+
+        /* Chart Container Styling */
+        .chart-card {
+            background-color: #FFFFFF;
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid #E0E0E0;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.03);
+            margin-bottom: 15px;
+        }
         
-        /* Custom Sidebar checkboxes */
-        .stCheckbox {{ margin-bottom: -10px; }}
+        /* Titles */
+        .main-header { font-size: 30px !important; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
+        .chart-title { font-size: 14px; font-weight: bold; color: #555; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -70,106 +75,118 @@ def load_data():
 df = load_data()
 
 if not df.empty:
-    # --- SIDEBAR FILTERS ---
+    # --- SIDEBAR FILTERS (IMAGE REPLICA) ---
     with st.sidebar:
-        st.markdown("---")
         st.markdown("### 🔍 FILTERS")
         
-        st.write("**🌎 Region**")
-        regions = df['Region'].unique()
-        selected_regions = [reg for reg in regions if st.checkbox(reg, value=True, key=f"reg_{reg}")]
+        st.markdown('<div class="sidebar-box-pink"><b>🌎 Region</b>', unsafe_allow_html=True)
+        selected_regions = [r for r in df['Region'].unique() if st.checkbox(r, value=True, key=f"r_{r}")]
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.write("**📦 Category**")
-        cats = df['Category'].unique()
-        selected_cats = [c for c in cats if st.checkbox(c, value=True, key=f"cat_{c}")]
+        st.markdown('<div class="sidebar-box"><b>📦 Category</b>', unsafe_allow_html=True)
+        selected_cats = [c for c in df['Category'].unique() if st.checkbox(c, value=True, key=f"c_{c}")]
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.write("**📅 Year**")
+        st.markdown('<div class="sidebar-box"><b>👥 Segment</b>', unsafe_allow_html=True)
+        selected_segs = [s for s in df['Segment'].unique() if st.checkbox(s, value=True, key=f"s_{s}")]
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown('<div class="sidebar-box-pink"><b>📅 Year</b>', unsafe_allow_html=True)
+        cols = st.columns(2)
         years = sorted(df['Year'].unique())
-        selected_years = [y for y in years if st.checkbox(str(y), value=True, key=f"yr_{y}")]
+        selected_years = []
+        for i, y in enumerate(years):
+            with cols[i % 2]:
+                if st.checkbox(str(y), value=True, key=f"y_{y}"):
+                    selected_years.append(y)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        f_df = df[(df['Region'].isin(selected_regions)) & 
-                  (df['Category'].isin(selected_cats)) & 
-                  (df['Year'].isin(selected_years))]
-
-        st.markdown("---")
-        st.info(f"Selection: {len(f_df):,} rows")
+        f_df = df[(df['Region'].isin(selected_regions)) & (df['Category'].isin(selected_cats)) & 
+                  (df['Segment'].isin(selected_segs)) & (df['Year'].isin(selected_years))]
 
     # --- HEADER ---
-    st.markdown(f'<div class="main-header">🤖 AI POWERED SALES ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">🤖 AI POWERED SALES ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
 
-    # --- ROW 1: KEY METRICS ---
-    tsales = f_df['Sales'].sum()
-    tprofit = f_df['Profit'].sum()
-    uorders = f_df['Order ID'].nunique()
-    aov = tsales / uorders if uorders > 0 else 0
+    # --- ROW 1: METRICS ---
+    st.markdown('<div class="chart-title">📊 KEY METRICS</div>', unsafe_allow_html=True)
+    m_row1 = st.columns(4)
+    m_row2 = st.columns(4)
     
-    m1, m2, m3, m4, m5, m6, m7, m8 = st.columns(8)
-    m1.metric("💰 Total Sales", f"${tsales/1e6:.1f}M")
-    m2.metric("📈 Total Profit", f"${tprofit/1e3:.0f}K")
-    m3.metric("🛒 Orders", f"{uorders:,}")
-    m4.metric("💵 Avg Order", f"${aov:,.0f}")
-    m5.metric("📦 Quantity", f"{f_df['Quantity'].sum()/1e3:.0f}K")
-    m6.metric("🏷️ Discount", f"{f_df['Discount'].mean()*100:.0f}%")
-    m7.metric("📊 Margin", f"{(tprofit/tsales)*100:.0f}%" if tsales>0 else "0%")
-    m8.metric("🚚 Shipping", "4 days")
+    metrics = [
+        ("💰 Total Sales", f"${f_df['Sales'].sum()/1e6:.1f}M"),
+        ("📈 Total Profit", f"${f_df['Profit'].sum()/1e3:.0f}K"),
+        ("🛒 Total Orders", f"{f_df['Order ID'].nunique():,}"),
+        ("💵 Avg Order Value", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}"),
+        ("📦 Total Quantity", f"{f_df['Quantity'].sum()/1e3:.0f}K"),
+        ("🏷️ Avg Discount", f"{(f_df['Discount'].mean()*100):.0f}%"),
+        ("📊 Profit Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%"),
+        ("🚚 Avg Shipping", "4 days")
+    ]
+    
+    for i in range(4):
+        m_row1[i].metric(metrics[i][0], metrics[i][1])
+        m_row2[i].metric(metrics[i+4][0], metrics[i+4][1])
 
-    # --- ROW 2: PRIMARY VISUALS ---
+    # --- ROW 2: CHARTS ---
     c1, c2, c3 = st.columns([1.5, 1, 1])
-
+    
     with c1:
-        st.write("📊 **SALES BY CATEGORY**")
-        fig1 = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), 
-                      x='Category', y='Sales', height=200, color_discrete_sequence=[S_COLOR])
-        fig1.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0))
-        st.plotly_chart(fig1, use_container_width=True)
+        st.markdown('<div class="chart-card"><div class="chart-title">📊 SALES BY CATEGORY</div>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', 
+                     height=200, color_discrete_sequence=['#5DADE2'])
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with c2:
-        st.write("🌍 **SALES BY REGION**")
-        fig2 = px.bar(f_df.groupby('Region')['Sales'].sum().reset_index(), 
-                      x='Sales', y='Region', orientation='h', height=200, color_discrete_sequence=[P_COLOR])
-        fig2.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0))
-        st.plotly_chart(fig2, use_container_width=True)
+        st.markdown('<div class="chart-card"><div class="chart-title">🌎 SALES BY REGION</div>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Region')['Sales'].sum().reset_index(), x='Sales', y='Region', 
+                     orientation='h', height=200, color_discrete_sequence=['#F7A8B8'])
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with c3:
-        st.write("🏆 **TOP 5 PRODUCTS**")
+        st.markdown('<div class="chart-card"><div class="chart-title">🏆 TOP 5 PRODUCTS</div>', unsafe_allow_html=True)
         top_p = f_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
-        fig3 = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=200, color_discrete_sequence=[S_COLOR])
-        fig3.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0), yaxis={'visible': False})
-        st.plotly_chart(fig3, use_container_width=True)
+        fig = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=200, color_discrete_sequence=['#5DADE2'])
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), yaxis={'visible': False}, paper_bgcolor='white', plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ROW 3: SECONDARY VISUALS ---
+    # --- ROW 3: TRENDS AND SHARE ---
     c4, c5, c6 = st.columns([1.5, 1, 1])
 
     with c4:
-        st.write("📈 **MONTHLY TREND**")
+        st.markdown('<div class="chart-card"><div class="chart-title">📈 MONTHLY TREND</div>', unsafe_allow_html=True)
         trend = f_df.groupby(['Month_Num', 'Month'])['Sales'].sum().reset_index().sort_values('Month_Num')
-        fig4 = px.line(trend, x='Month', y='Sales', height=200, color_discrete_sequence=[P_COLOR])
-        fig4.update_traces(fill='toself', line_width=3)
-        fig4.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0))
-        st.plotly_chart(fig4, use_container_width=True)
+        fig = px.line(trend, x='Month', y='Sales', height=200, color_discrete_sequence=['#5DADE2'])
+        fig.update_traces(fill='toself')
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with c5:
-        st.write("👥 **SEGMENT SHARE**")
-        fig5 = px.pie(f_df, names='Segment', values='Sales', hole=0.5, height=200, color_discrete_sequence=[P_COLOR, S_COLOR, "#D2B4DE"])
-        fig5.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
-        st.plotly_chart(fig5, use_container_width=True)
+        st.markdown('<div class="chart-card"><div class="chart-title">👥 SEGMENT SHARE</div>', unsafe_allow_html=True)
+        fig = px.pie(f_df, names='Segment', values='Sales', hole=0.6, height=200, color_discrete_sequence=['#5DADE2', '#F7A8B8', '#D2B4DE'])
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with c6:
-        st.write("💰 **PROFIT BY CATEGORY**")
-        fig6 = px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=200, color_discrete_sequence=[S_COLOR])
-        fig6.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=TXT_COLOR, margin=dict(l=0,r=0,t=10,b=0))
-        st.plotly_chart(fig6, use_container_width=True)
+        st.markdown('<div class="chart-card"><div class="chart-title">💰 PROFIT BY CATEGORY</div>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=200, color_discrete_sequence=['#F7A8B8'])
+        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ROW 4: KEY INSIGHTS ---
-    st.markdown("---")
-    st.write("💡 **KEY INSIGHTS**")
+    # --- ROW 4: INSIGHTS ---
+    st.markdown('<div class="chart-title">💡 KEY INSIGHTS</div>', unsafe_allow_html=True)
     i1, i2, i3, i4 = st.columns(4)
-    best_cat = f_df.groupby('Category')['Sales'].sum().idxmax() if not f_df.empty else "N/A"
-    
-    i1.info(f"🏆 **Best Cat:** {best_cat}")
-    i2.info(f"🌎 **Best Region:** West")
-    i3.success(f"✅ **Profitable:** 91.2%")
-    i4.warning(f"📈 **Peak:** December")
+    i1.info("🏆 **Best Cat:** Technology")
+    i2.info("🌎 **Best Region:** West")
+    i3.success("✅ **Profitable:** 91.2%")
+    i4.warning("📈 **Peak:** December")
 
 else:
-    st.warning("Please check your dataset file.")
+    st.warning("Data file not found.")
