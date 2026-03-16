@@ -18,61 +18,53 @@ themes = {
 }
 th = themes[theme_choice]
 
-# --- THE ULTIMATE CSS FIX FOR VISIBILITY ---
+# --- REFINED CSS FOR SPACING & VISIBILITY ---
 st.markdown(f"""
     <style>
-        /* This removes the blank space at the very top of Streamlit */
-        header[data-testid="stHeader"] {{
-            visibility: hidden;
-            height: 0% !important;
-        }}
+        /* 1. Global Background */
+        .stApp {{ background-color: {th['bg']}; color: {th['txt']}; }}
         
-        .stApp {{ 
-            background-color: {th['bg']}; 
-            color: {th['txt']}; 
-        }}
-        
-        /* Forces the container to start at the absolute top (0px) */
+        /* 2. Push everything down from the top */
         .block-container {{ 
-            padding-top: 0rem !important; 
-            margin-top: -60px !important; 
+            padding-top: 5rem !important; /* This creates the 'lower' look */
+            padding-bottom: 2rem !important;
+            max-width: 95%;
         }}
 
-        /* The Dashboard Title Header - Pinned and Bold */
-        .dashboard-title-box {{ 
+        /* 3. Dashboard Title Header - Centered and Spaced */
+        .dashboard-header {{
             background-color: {th['card']};
-            width: 100%;
-            padding: 20px;
-            border-bottom: 3px solid {th['s']};
-            text-align: left;
-            margin-bottom: 25px;
-            box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
-        }}
-        
-        .main-header-text {{
-            font-size: 32px !important;
-            font-weight: 900 !important;
-            color: {th['txt']};
-            letter-spacing: -1px;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border-left: 10px solid {th['s']};
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.05);
             display: flex;
             align-items: center;
-            gap: 15px;
+        }}
+        
+        .header-text {{
+            font-size: 32px !important;
+            font-weight: 800;
+            color: {th['txt']};
+            margin: 0;
         }}
 
-        /* Card & Filter Styling */
-        .box {{ background-color: {th['card']}; border: 1px solid #DDD; border-radius: 12px; padding: 15px; }}
-        .filter-header {{ background-color: {th['p']}33; padding: 8px; border: 1px solid {th['p']}; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px; }}
-        .filter-body {{ background-color: {th['card']}; padding: 10px; border: 1px solid #DDD; border-top:none; border-radius: 0 0 8px 8px; margin-bottom: 10px; }}
+        /* 4. Boxes and Filters */
+        .box {{ 
+            background-color: {th['card']}; 
+            border: 1px solid #E0E0E0; 
+            border-radius: 12px; 
+            padding: 15px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.02);
+        }}
+        
+        .filter-header-blue {{ background-color: {th['s']}22; padding: 10px; border-radius: 10px 10px 0 0; border: 1px solid {th['s']}; font-weight: bold; margin-top: 10px; }}
+        .filter-header-pink {{ background-color: {th['p']}22; padding: 10px; border-radius: 10px 10px 0 0; border: 1px solid {th['p']}; font-weight: bold; margin-top: 10px; }}
+        
+        /* Small laptop adjustments */
+        [data-testid="stMetricValue"] {{ font-size: 22px !important; font-weight: 700 !important; }}
     </style>
-    """, unsafe_allow_html=True)
-
-# --- HEADER (NOW FORCED TO THE TOP) ---
-st.markdown(f"""
-    <div class="dashboard-title-box">
-        <div class="main-header-text">
-            <span>🤖</span> AI POWERED SALES ANALYTICS DASHBOARD
-        </div>
-    </div>
     """, unsafe_allow_html=True)
 
 # --- DATA LOADING ---
@@ -90,19 +82,17 @@ def load_data():
 df = load_data()
 
 if not df.empty:
-    # --- SIDEBAR FILTERS ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.markdown("### 🔍 FILTERS")
         
-        st.markdown('<div class="filter-header">🌎 Region</div>', unsafe_allow_html=True)
-        with st.container():
-            sel_region = [r for r in df['Region'].unique() if st.checkbox(r, True, key=f"r{r}")]
+        st.markdown(f'<div class="filter-header-pink">🌎 Region</div>', unsafe_allow_html=True)
+        sel_region = [r for r in df['Region'].unique() if st.checkbox(r, True, key=f"r{r}")]
         
-        st.markdown('<div class="filter-header">📦 Category</div>', unsafe_allow_html=True)
-        with st.container():
-            sel_cat = [c for c in df['Category'].unique() if st.checkbox(c, True, key=f"c{c}")]
+        st.markdown(f'<div class="filter-header-blue">📦 Category</div>', unsafe_allow_html=True)
+        sel_cat = [c for c in df['Category'].unique() if st.checkbox(c, True, key=f"c{c}")]
         
-        st.markdown('<div class="filter-header">📅 Year</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="filter-header-pink">📅 Year</div>', unsafe_allow_html=True)
         y_cols = st.columns(2)
         years = sorted(df['Year'].unique())
         sel_year = []
@@ -111,56 +101,56 @@ if not df.empty:
 
         f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))]
 
-    # --- KPI ROW (8 METRICS) ---
-    st.write("📊 **KEY METRICS**")
-    m_row1 = st.columns(4)
-    m_row2 = st.columns(4)
-    
-    def draw_metric(col, icon, label, val):
-        col.markdown(f"""<div class="box" style="display:flex; align-items:center; gap:12px;">
-            <div style="font-size:24px;">{icon}</div>
-            <div><div style="font-size:12px; color:#888;">{label}</div><div style="font-size:20px; font-weight:bold;">{val}</div></div>
-        </div>""", unsafe_allow_html=True)
+    # --- MAIN CONTENT ---
+    # The Header (Lowered)
+    st.markdown(f"""
+        <div class="dashboard-header">
+            <span class="header-text">🤖 AI POWERED SALES ANALYTICS DASHBOARD</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    draw_metric(m_row1[0], "💰", "Total Sales", f"${f_df['Sales'].sum()/1e6:.1f}M")
-    draw_metric(m_row1[1], "📈", "Total Profit", f"${f_df['Profit'].sum()/1e3:.0f}K")
-    draw_metric(m_row1[2], "🛒", "Total Orders", f"{f_df['Order ID'].nunique():,}")
-    draw_metric(m_row1[3], "💵", "Avg Order Value", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}" if not f_df.empty else "0")
+    # --- KPI METRICS ---
+    st.write("📊 **KEY PERFORMANCE INDICATORS**")
+    m1, m2, m3, m4, m5, m6, m7, m8 = st.columns(8)
     
-    draw_metric(m_row2[0], "📦", "Total Quantity", f"{f_df['Quantity'].sum()/1e3:.0f}K")
-    draw_metric(m_row2[1], "🏷️", "Avg Discount", f"{(f_df['Discount'].mean()*100):.0f}%")
-    draw_metric(m_row2[2], "📊", "Profit Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%" if f_df['Sales'].sum() > 0 else "0%")
-    draw_metric(m_row2[3], "🚚", "Avg Shipping", "4 days")
+    m1.metric("💰 Sales", f"${f_df['Sales'].sum()/1e6:.1f}M")
+    m2.metric("📈 Profit", f"${f_df['Profit'].sum()/1e3:.0f}K")
+    m3.metric("🛒 Orders", f"{f_df['Order ID'].nunique():,}")
+    m4.metric("💵 AOV", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}" if not f_df.empty else "0")
+    m5.metric("📦 Qty", f"{f_df['Quantity'].sum()/1e3:.0f}K")
+    m6.metric("🏷️ Disc", f"{(f_df['Discount'].mean()*100):.0f}%")
+    m7.metric("📊 %", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%" if not f_df.empty else "0%")
+    m8.metric("🚚 Ship", "4d")
 
     st.write("")
 
     # --- VISUALS GRID ---
-    c1, c2, c3 = st.columns([1.2, 1, 1])
-    with c1:
+    row1_c1, row1_c2, row1_c3 = st.columns([1.2, 1, 1])
+    with row1_c1:
         st.markdown('<div class="box"><b>📊 Sales by Category</b>', unsafe_allow_html=True)
         st.plotly_chart(px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', height=180, color_discrete_sequence=[th['s']]).update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
-    with c2:
+    with row1_c2:
         st.markdown('<div class="box"><b>🌍 Sales by Region</b>', unsafe_allow_html=True)
         st.plotly_chart(px.bar(f_df.groupby('Region')['Sales'].sum().reset_index(), x='Sales', y='Region', orientation='h', height=180, color_discrete_sequence=[th['p']]).update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
-    with c3:
+    with row1_c3:
         st.markdown('<div class="box"><b>🏆 Top 5 Products</b>', unsafe_allow_html=True)
         top_p = f_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
         st.plotly_chart(px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=180, color_discrete_sequence=[th['s']]).update_layout(margin=dict(l=0,r=0,t=20,b=0), yaxis={'visible': False}), use_container_width=True)
 
-    c4, c5, c6 = st.columns([1.2, 1, 1])
-    with c4:
+    row2_c1, row2_c2, row2_c3 = st.columns([1.2, 1, 1])
+    with row2_c1:
         st.markdown('<div class="box"><b>📈 Monthly Trend</b>', unsafe_allow_html=True)
         trend = f_df.groupby(['Month_Num', 'Month'])['Sales'].sum().reset_index().sort_values('Month_Num')
         st.plotly_chart(px.line(trend, x='Month', y='Sales', height=180, color_discrete_sequence=[th['s']]).update_traces(fill='toself').update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
-    with c5:
+    with row2_c2:
         st.markdown('<div class="box"><b>👥 Segment Share</b>', unsafe_allow_html=True)
         st.plotly_chart(px.pie(f_df, names='Segment', values='Sales', hole=0.5, height=180, color_discrete_sequence=[th['s'], th['p'], "#D2B4DE"]).update_layout(margin=dict(l=0,r=0,t=20,b=0), showlegend=False), use_container_width=True)
-    with c6:
+    with row2_c3:
         st.markdown('<div class="box"><b>💰 Profit by Category</b>', unsafe_allow_html=True)
         st.plotly_chart(px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=180, color_discrete_sequence=[th['p']]).update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
 
-    # --- INSIGHTS ---
-    st.write("💡 **KEY INSIGHTS**")
+    # --- KEY INSIGHTS (LOWERED) ---
+    st.write("💡 **SMART INSIGHTS**")
     i_cols = st.columns(4)
     i_cols[0].info(f"🏆 Best: {f_df.groupby('Category')['Sales'].sum().idxmax() if not f_df.empty else 'N/A'}")
     i_cols[1].info("🌎 Region: West")
@@ -168,4 +158,4 @@ if not df.empty:
     i_cols[3].warning("📈 Peak: Dec")
 
 else:
-    st.error("Dataset not found!")
+    st.error("Please ensure SALES_DATA_SETT.xlsx is in the repository.")
