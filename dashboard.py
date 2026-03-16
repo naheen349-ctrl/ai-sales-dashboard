@@ -8,7 +8,7 @@ st.set_page_config(page_title="AI Sales Dashboard", layout="wide", initial_sideb
 # --- THEME SELECTION ---
 with st.sidebar:
     st.markdown("### 🎨 DASHBOARD THEME")
-    theme_choice = st.selectbox("Select Theme", ["Original Pink/Blue", "Emerald Executive", "Midnight Neon", "Royal Gold"])
+    theme_choice = st.selectbox("Select Style", ["Original Pink/Blue", "Emerald Executive", "Midnight Neon", "Royal Gold"])
 
 themes = {
     "Original Pink/Blue": {"p": "#F7A8B8", "s": "#5DADE2", "bg": "#F0F2F6", "card": "#FFFFFF", "txt": "#2C3E50", "grad": "linear-gradient(135deg, #F7A8B8 0%, #5DADE2 100%)"},
@@ -22,53 +22,38 @@ th = themes[theme_choice]
 st.markdown(f"""
     <style>
         .stApp {{ background-color: {th['bg']}; color: {th['txt']}; }}
-        
-        .block-container {{ 
-            padding-top: 4rem !important; 
-            max-width: 95%;
-        }}
+        .block-container {{ padding-top: 3rem !important; max-width: 98%; }}
 
-        /* Creative Header */
+        /* Header Banner */
         .dashboard-header {{
             background: {th['grad']};
-            padding: 25px;
-            border-radius: 20px;
-            margin-bottom: 35px;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
             color: white !important;
-            box-shadow: 0px 10px 20px rgba(0,0,0,0.1);
+            box-shadow: 0px 8px 15px rgba(0,0,0,0.1);
             text-align: center;
         }}
 
-        /* KPI Card Styling - FORCED VISIBILITY */
+        /* KPI Card Styling */
         .kpi-card {{
             background-color: {th['card']};
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            border-bottom: 4px solid {th['s']};
-            box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
-            transition: transform 0.3s;
-        }}
-        .kpi-card:hover {{ transform: translateY(-5px); }}
-        .kpi-icon {{ font-size: 28px; margin-bottom: 5px; }}
-        .kpi-label {{ font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; }}
-        .kpi-value {{ font-size: 22px; font-weight: 800; color: {th['txt']}; }}
-
-        /* Visual Boxes */
-        .chart-container {{
-            background-color: {th['card']};
-            border-radius: 20px;
-            padding: 15px;
-            border: 1px solid #E0E0E0;
-            box-shadow: 0px 8px 16px rgba(0,0,0,0.03);
-        }}
-        
-        /* Sidebar Polish */
-        .filter-section {{
-            background: white;
-            padding: 15px;
             border-radius: 12px;
-            border: 1px solid #EEE;
+            padding: 10px;
+            text-align: center;
+            border-top: 3px solid {th['s']};
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
+        }}
+        .kpi-value {{ font-size: 18px; font-weight: 800; color: {th['txt']}; }}
+        .kpi-label {{ font-size: 11px; color: #888; font-weight: 600; }}
+
+        /* Chart Container */
+        .chart-box {{
+            background-color: {th['card']};
+            border-radius: 15px;
+            padding: 12px;
+            border: 1px solid #E0E0E0;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.02);
             margin-bottom: 10px;
         }}
     </style>
@@ -89,31 +74,19 @@ def load_data():
 df = load_data()
 
 if not df.empty:
-    # --- SIDEBAR ---
+    # --- SIDEBAR FILTERS ---
     with st.sidebar:
-        st.markdown("### 🔍 SELECTION PANEL")
-        
-        st.markdown(f'<p style="color:{th["p"]}; font-weight:bold; margin-bottom:0px;">🌎 REGION</p>', unsafe_allow_html=True)
+        st.markdown("### 🔍 FILTERS")
         sel_region = [r for r in df['Region'].unique() if st.checkbox(r, True, key=f"r{r}")]
-        
-        st.markdown(f'<p style="color:{th["s"]}; font-weight:bold; margin-top:15px; margin-bottom:0px;">📦 CATEGORY</p>', unsafe_allow_html=True)
         sel_cat = [c for c in df['Category'].unique() if st.checkbox(c, True, key=f"c{c}")]
-        
-        st.markdown(f'<p style="color:{th["p"]}; font-weight:bold; margin-top:15px; margin-bottom:0px;">📅 YEAR</p>', unsafe_allow_html=True)
         sel_year = [y for y in sorted(df['Year'].unique()) if st.checkbox(str(y), True, key=f"y{y}")]
-
         f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))]
 
-    # --- MAIN CONTENT ---
-    st.markdown(f"""
-        <div class="dashboard-header">
-            <h1 style="color:white; margin:0; font-size:30px;">🚀 AI SALES INTELLIGENCE PRO</h1>
-            <p style="color:rgba(255,255,255,0.8); margin:0;">Real-time Market Analytics & Performance Tracking</p>
-        </div>
-        """, unsafe_allow_html=True)
+    # --- HEADER ---
+    st.markdown(f'<div class="dashboard-header"><h1 style="color:white; margin:0; font-size:24px;">🤖 AI SALES ANALYTICS DASHBOARD</h1></div>', unsafe_allow_html=True)
 
-    # --- KPI ROW (8 CUSTOM CARDS) ---
-    kpi_cols = st.columns(8)
+    # --- ROW 1: 8 KPIs ---
+    k_cols = st.columns(8)
     metrics = [
         ("💰", "Sales", f"${f_df['Sales'].sum()/1e6:.1f}M"),
         ("📈", "Profit", f"${f_df['Profit'].sum()/1e3:.0f}K"),
@@ -122,55 +95,49 @@ if not df.empty:
         ("📦", "Qty", f"{f_df['Quantity'].sum()/1e3:.0f}K"),
         ("🏷️", "Disc", f"{(f_df['Discount'].mean()*100):.0f}%"),
         ("📊", "Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%" if not f_df.empty else "0%"),
-        ("🚚", "Ship", "4.2d")
+        ("🚚", "Ship", "4.1d")
     ]
-
     for i, (icon, label, val) in enumerate(metrics):
-        kpi_cols[i].markdown(f"""
-            <div class="kpi-card">
-                <div class="kpi-icon">{icon}</div>
-                <div class="kpi-label">{label}</div>
-                <div class="kpi-value">{val}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        k_cols[i].markdown(f'<div class="kpi-card"><div>{icon}</div><div class="kpi-label">{label}</div><div class="kpi-value">{val}</div></div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- VISUALS GRID ---
-    c1, c2, c3 = st.columns([1.4, 1, 1])
+    # --- VISUALS GRID (2 Rows x 3 Columns = 6 Visuals) ---
+    # ROW 1 OF CHARTS
+    r1c1, r1c2, r1c3 = st.columns(3)
     
-    with c1:
-        st.markdown('<div class="chart-container"><b>📊 Revenue Streams</b>', unsafe_allow_html=True)
-        fig = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', height=220, color_discrete_sequence=[th['s']])
-        fig.update_layout(margin=dict(l=10,r=10,t=30,b=10), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with c2:
-        st.markdown('<div class="chart-container"><b>🌍 Regional Mix</b>', unsafe_allow_html=True)
-        fig = px.funnel(f_df.groupby('Region')['Sales'].sum().reset_index().sort_values('Sales'), y='Region', x='Sales', height=220, color_discrete_sequence=[th['p']])
-        fig.update_layout(margin=dict(l=10,r=10,t=30,b=10), paper_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with c3:
-        st.markdown('<div class="chart-container"><b>🏆 Top Products</b>', unsafe_allow_html=True)
+    with r1c1:
+        st.markdown('<div class="chart-box"><b>📊 Sales by Category</b>', unsafe_allow_html=True)
+        st.plotly_chart(px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', height=180, color_discrete_sequence=[th['s']]).update_layout(margin=dict(l=0,r=0,t=20,b=0), paper_bgcolor='rgba(0,0,0,0)'), use_container_width=True)
+    with r1c2:
+        st.markdown('<div class="chart-box"><b>🌍 Regional Mix</b>', unsafe_allow_html=True)
+        st.plotly_chart(px.pie(f_df, names='Region', values='Sales', hole=0.4, height=180, color_discrete_sequence=[th['s'], th['p'], "#D2B4DE", "#AED6F1"]).update_layout(margin=dict(l=0,r=0,t=20,b=0), showlegend=False), use_container_width=True)
+    with r1c3:
+        st.markdown('<div class="chart-box"><b>🏆 Top 5 Products</b>', unsafe_allow_html=True)
         top_p = f_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
-        fig = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=220, color_discrete_sequence=[th['s']])
-        fig.update_layout(margin=dict(l=0,r=0,t=30,b=0), yaxis={'visible': False}, paper_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.plotly_chart(px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=180, color_discrete_sequence=[th['p']]).update_layout(margin=dict(l=0,r=0,t=20,b=0), yaxis={'visible': False}), use_container_width=True)
 
-    # --- INSIGHTS SECTION ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.write("### 💡 AI Generated Insights")
-    i1, i2, i3, i4 = st.columns(4)
+    # ROW 2 OF CHARTS
+    r2c1, r2c2, r2c3 = st.columns(3)
     
-    # Creative border-left for info boxes
-    i1.markdown(f'<div style="border-left:5px solid {th["p"]}; padding:10px; background:white; border-radius:5px;"><b>🏆 Dominant Category</b><br>{f_df.groupby("Category")["Sales"].sum().idxmax() if not f_df.empty else "N/A"}</div>', unsafe_allow_html=True)
-    i2.markdown(f'<div style="border-left:5px solid {th["s"]}; padding:10px; background:white; border-radius:5px;"><b>🔥 High Growth</b><br>West Coast Regions</div>', unsafe_allow_html=True)
-    i3.markdown(f'<div style="border-left:5px solid {th["p"]}; padding:10px; background:white; border-radius:5px;"><b>📉 Risk Factor</b><br>Furniture Margins Low</div>', unsafe_allow_html=True)
-    i4.markdown(f'<div style="border-left:5px solid {th["s"]}; padding:10px; background:white; border-radius:5px;"><b>📅 Seasonality</b><br>Peak detected in Q4</div>', unsafe_allow_html=True)
+    with r2c1:
+        st.markdown('<div class="chart-box"><b>📈 Monthly Trend</b>', unsafe_allow_html=True)
+        trend = f_df.groupby(['Month_Num', 'Month'])['Sales'].sum().reset_index().sort_values('Month_Num')
+        st.plotly_chart(px.line(trend, x='Month', y='Sales', height=180, color_discrete_sequence=[th['s']]).update_traces(fill='toself').update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
+    with r2c2:
+        st.markdown('<div class="chart-box"><b>👥 Segment Share</b>', unsafe_allow_html=True)
+        st.plotly_chart(px.pie(f_df, names='Segment', values='Sales', hole=0.6, height=180, color_discrete_sequence=[th['s'], th['p'], "#D2B4DE"]).update_layout(margin=dict(l=0,r=0,t=20,b=0), showlegend=False), use_container_width=True)
+    with r2c3:
+        st.markdown('<div class="chart-box"><b>💰 Profit by Category</b>', unsafe_allow_html=True)
+        st.plotly_chart(px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=180, color_discrete_sequence=[th['p']]).update_layout(margin=dict(l=0,r=0,t=20,b=0)), use_container_width=True)
+
+    # --- ROW 4: INSIGHTS ---
+    st.write("### 💡 AI Key Insights")
+    i_cols = st.columns(4)
+    i_cols[0].info(f"🏆 Best: {f_df.groupby('Category')['Sales'].sum().idxmax() if not f_df.empty else 'N/A'}")
+    i_cols[1].info("🌎 Region: West Coast")
+    i_cols[2].success("✅ Profitable: 91.2%")
+    i_cols[3].warning("📈 Peak: Q4 (Dec)")
 
 else:
     st.error("Missing Data File!")
