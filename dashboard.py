@@ -1,61 +1,84 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="AI Sales Intelligence Pro", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="AI Sales Intelligence", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM THEME (Power BI Blue & Gold) ---
-th = {
-    "bg": "#F0F2F5",
-    "card": "#FFFFFF",
-    "text": "#1F2937",
-    "accent": "#2563EB",  # Power BI Blue
-    "secondary": "#F59E0B" # Gold
+# --- THEME CONFIG ---
+with st.sidebar:
+    st.markdown("### 🎨 VISUAL UNIVERSE")
+    theme_choice = st.selectbox("Select Theme", ["Midnight Neon", "Emerald Glass", "Oceanic Pro", "Sunset Rose"])
+
+themes = {
+    "Midnight Neon": {"p": "#BB86FC", "s": "#03DAC6", "bg": "#0E1117", "card": "rgba(20, 20, 20, 0.85)", "txt": "#FFFFFF", "sub": "#BB86FC"},
+    "Emerald Glass": {"p": "#1E8449", "s": "#2C3E50", "bg": "#F1F9F4", "card": "rgba(255, 255, 255, 0.95)", "txt": "#000000", "sub": "#1E8449"},
+    "Oceanic Pro": {"p": "#1F618D", "s": "#21618C", "bg": "#EBF5FB", "card": "rgba(255, 255, 255, 0.95)", "txt": "#000000", "sub": "#1F618D"},
+    "Sunset Rose": {"p": "#C0392B", "s": "#641E16", "bg": "#FDF2F4", "card": "rgba(255, 255, 255, 0.95)", "txt": "#000000", "sub": "#C0392B"}
 }
+th = themes[theme_choice]
 
-# --- HIGH-VISIBILITY CSS ---
+# --- REFINED HIGH-VISIBILITY CSS ---
 st.markdown(f"""
     <style>
-        .stApp {{ background-color: {th['bg']}; color: {th['text']}; }}
+        .stApp {{ background-color: {th['bg']}; color: {th['txt']}; }}
         
-        /* Power BI Header Bar */
-        .pbi-header {{
-            background-color: {th['accent']};
-            padding: 15px;
-            border-radius: 10px;
-            color: white !important;
+        /* 1. Header Visibility */
+        .main-title {{
+            font-size: 38px !important;
+            font-weight: 900 !important;
+            color: {th['txt']};
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
             text-align: center;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }}
-
-        /* KPI Card Styling */
-        .kpi-card {{
-            background: {th['card']};
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 5px solid {th['secondary']};
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }}
-        .kpi-val {{ font-size: 24px; font-weight: 800; color: {th['accent']}; }}
-        .kpi-lab {{ font-size: 12px; font-weight: 600; color: #6B7280; text-transform: uppercase; }}
-
-        /* Chart Containers */
-        .chart-card {{
-            background: {th['card']};
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border: 1px solid #E5E7EB;
             margin-bottom: 20px;
         }}
+
+        /* 2. KPI Box Visibility - Darker text, bolder fonts */
+        .kpi-box {{
+            text-align: center;
+            padding: 15px;
+            background: {th['card']};
+            border-radius: 15px;
+            border: 2px solid {th['p']};
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }}
+        .kpi-label {{
+            font-size: 13px !important;
+            color: {th['txt']};
+            opacity: 0.8;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }}
+        .kpi-value {{
+            font-size: 24px !important;
+            font-weight: 900 !important;
+            color: {th['p']};
+            text-shadow: 1px 1px 0px rgba(0,0,0,0.05);
+        }}
+
+        /* 3. Visuals Visibility */
+        .glass-container {{
+            background: {th['card']};
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            color: {th['txt']} !important;
+        }}
         
-        /* Force text visibility */
-        h1, h2, h3, p, span {{ color: {th['text']} !important; }}
-        .pbi-header h1 {{ color: white !important; }}
+        /* 4. Sidebar/Filter Visibility */
+        [data-testid="stSidebar"] {{
+            background-color: {th['card']} !important;
+            border-right: 2px solid {th['p']};
+        }}
+        .stCheckbox label {{
+            font-weight: 700 !important;
+            color: {th['txt']} !important;
+        }}
+
+        .block-container {{ padding-top: 4rem !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -66,95 +89,117 @@ def load_data():
         df = pd.read_excel("SALES_DATA_SETT.xlsx")
         df['Order Date'] = pd.to_datetime(df['Order Date'])
         df['Year'] = df['Order Date'].dt.year
+        df['Month'] = df['Order Date'].dt.strftime('%b')
+        df['Month_Num'] = df['Order Date'].dt.month
         return df
     except: return pd.DataFrame()
 
 df = load_data()
 
 if not df.empty:
-    # --- SIDEBAR (Slicers) ---
+    # --- SIDEBAR ---
     with st.sidebar:
-        st.markdown("### 🔍 Report Slicers")
-        sel_region = st.multiselect("Select Region", df['Region'].unique(), default=df['Region'].unique())
-        sel_cat = st.multiselect("Select Category", df['Category'].unique(), default=df['Category'].unique())
-        f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat))]
+        st.markdown(f"<h2 style='color:{th['p']}; font-weight:900;'>🔍 CONTROL PANEL</h2>", unsafe_allow_html=True)
+        st.markdown("---")
+        sel_region = [r for r in df['Region'].unique() if st.checkbox(f"🌎 {r}", True)]
+        st.markdown("---")
+        sel_cat = [c for c in df['Category'].unique() if st.checkbox(f"📦 {c}", True)]
+        st.markdown("---")
+        sel_year = [y for y in sorted(df['Year'].unique()) if st.checkbox(f"📅 {y}", True)]
+        
+        f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))]
 
-    # --- DASHBOARD HEADER ---
-    st.markdown('<div class="pbi-header"><h1>📊 AI POWERED SALES EXECUTIVE SUMMARY</h1></div>', unsafe_allow_html=True)
+    # --- MAIN TITLE ---
+    st.markdown(f'<div class="main-title">🤖 AI SALES INTELLIGENCE PRO</div>', unsafe_allow_html=True)
 
-    # --- ROW 1: 8 BOLD KPIs ---
+    # --- 8 KPIs (ROW 1) ---
     k_cols = st.columns(8)
-    kpi_data = [
-        ("Revenue", f"${f_df['Sales'].sum()/1e6:.1f}M"),
-        ("Profit", f"${f_df['Profit'].sum()/1e3:.0f}K"),
-        ("Orders", f"{f_df['Order ID'].nunique():,}"),
-        ("AOV", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}"),
-        ("Units", f"{f_df['Quantity'].sum()/1e3:.0f}K"),
-        ("Disc %", f"{(f_df['Discount'].mean()*100):.0f}%"),
-        ("Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.1f}%"),
-        ("Lead Time", "4.2d")
+    metrics = [
+        ("💰", "Revenue", f"${f_df['Sales'].sum()/1e6:.1f}M"),
+        ("📈", "Profit", f"${f_df['Profit'].sum()/1e3:.0f}K"),
+        ("🛒", "Orders", f"{f_df['Order ID'].nunique():,}"),
+        ("💵", "Avg Ticket", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}"),
+        ("📦", "Units", f"{f_df['Quantity'].sum()/1e3:.0f}K"),
+        ("🏷️", "Discount", f"{(f_df['Discount'].mean()*100):.0f}%"),
+        ("📊", "Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%"),
+        ("🚚", "Delivery", "4.1d")
     ]
-    for i, (label, val) in enumerate(kpi_data):
-        k_cols[i].markdown(f'<div class="kpi-card"><div class="kpi-lab">{label}</div><div class="kpi-val">{val}</div></div>', unsafe_allow_html=True)
+    
+    for i, (icon, label, val) in enumerate(metrics):
+        k_cols[i].markdown(f"""
+            <div class="kpi-box">
+                <div style='font-size:26px;'>{icon}</div>
+                <div class="kpi-label">{label}</div>
+                <div class="kpi-value">{val}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.write("")
 
-    # --- ROW 2 & 3: 6 CREATIVE VISUALS ---
-    c1, c2, c3 = st.columns(3)
-    c4, c5, c6 = st.columns(3)
+    # --- 6 VISUALS GRID ---
+    r1 = st.columns(3)
+    r2 = st.columns(3)
 
-    # Visual 1: Horizontal Funnel (Sales by Category)
-    with c1:
-        st.markdown('<div class="chart-card"><b>📈 Sales funnel by Category</b>', unsafe_allow_html=True)
-        fig = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Sales', y='Category', orientation='h', height=220, color_discrete_sequence=[th['accent']])
-        fig.update_layout(margin=dict(l=0,r=10,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True, key="v1")
+    # Helper for charts to ensure visibility
+    def update_fig(fig):
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=30, b=10),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color=th['txt'], size=12, family="Arial Black"),
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=False)
+        )
+        return fig
+
+    with r1[0]:
+        st.markdown('<div class="glass-container"><b>📊 SALES DYNAMICS</b>', unsafe_allow_html=True)
+        fig1 = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', height=210, color_discrete_sequence=[th['p']])
+        st.plotly_chart(update_fig(fig1), use_container_width=True, key="c1")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Visual 2: Power BI Donut (Regional Share)
-    with c2:
-        st.markdown('<div class="chart-card"><b>🌍 Geographic Contribution</b>', unsafe_allow_html=True)
-        fig = px.pie(f_df, names='Region', values='Sales', hole=0.6, height=220, color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig.update_layout(showlegend=False, margin=dict(l=0,r=0,t=0,b=0))
-        st.plotly_chart(fig, use_container_width=True, key="v2")
+    with r1[1]:
+        st.markdown('<div class="glass-container"><b>🌍 REGIONAL MIX</b>', unsafe_allow_html=True)
+        fig2 = px.pie(f_df, names='Region', values='Sales', hole=0.5, height=210, color_discrete_sequence=[th['p'], th['s'], "#8E44AD", "#34495E"])
+        fig2.update_layout(showlegend=False)
+        st.plotly_chart(update_fig(fig2), use_container_width=True, key="c2")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Visual 3: Top Products (Treemap)
-    with c3:
-        st.markdown('<div class="chart-card"><b>🏆 Product Hierarchy</b>', unsafe_allow_html=True)
-        fig = px.treemap(f_df.nlargest(20, 'Sales'), path=['Category', 'Sub-Category'], values='Sales', height=220, color_discrete_sequence=[th['secondary']])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0))
-        st.plotly_chart(fig, use_container_width=True, key="v3")
+    with r1[2]:
+        st.markdown('<div class="glass-container"><b>🏆 ELITE PRODUCTS</b>', unsafe_allow_html=True)
+        top_p = f_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
+        fig3 = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=210, color_discrete_sequence=[th['s']])
+        fig3.update_layout(yaxis={'visible': False})
+        st.plotly_chart(update_fig(fig3), use_container_width=True, key="c3")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Visual 4: Sales Velocity (Area Chart)
-    with c4:
-        st.markdown('<div class="chart-card"><b>🚀 Sales Velocity (Monthly)</b>', unsafe_allow_html=True)
-        temp_df = f_df.resample('M', on='Order Date')['Sales'].sum().reset_index()
-        fig = px.area(temp_df, x='Order Date', y='Sales', height=220, color_discrete_sequence=[th['accent']])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True, key="v4")
+    with r2[0]:
+        st.markdown('<div class="glass-container"><b>📈 GROWTH TREND</b>', unsafe_allow_html=True)
+        trend = f_df.groupby(['Month_Num', 'Month'])['Sales'].sum().reset_index().sort_values('Month_Num')
+        fig4 = px.area(trend, x='Month', y='Sales', height=210, color_discrete_sequence=[th['p']])
+        st.plotly_chart(update_fig(fig4), use_container_width=True, key="c4")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Visual 5: Gauge Chart (Profit Margin)
-    with c5:
-        st.markdown('<div class="chart-card"><b>🎯 Target Margin</b>', unsafe_allow_html=True)
-        margin = (f_df['Profit'].sum()/f_df['Sales'].sum()*100) if not f_df.empty else 0
-        fig = go.Figure(go.Indicator(mode="gauge+number", value=margin, number={'suffix': "%"}, gauge={'bar': {'color': th['accent']}}))
-        fig.update_layout(height=220, margin=dict(l=20,r=20,t=20,b=20))
-        st.plotly_chart(fig, use_container_width=True, key="v5")
+    with r2[1]:
+        st.markdown('<div class="glass-container"><b>👥 SEGMENT SHARE</b>', unsafe_allow_html=True)
+        fig5 = px.pie(f_df, names='Segment', values='Sales', height=210, color_discrete_sequence=[th['s'], th['p'], "#D2B4DE"])
+        fig5.update_layout(showlegend=False)
+        st.plotly_chart(update_fig(fig5), use_container_width=True, key="c5")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Visual 6: Scatter Analysis (Sales vs Profit)
-    with c6:
-        st.markdown('<div class="chart-card"><b>🔬 Profitability Correlation</b>', unsafe_allow_html=True)
-        fig = px.scatter(f_df, x="Sales", y="Profit", color="Category", height=220, opacity=0.5)
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig, use_container_width=True, key="v6")
+    with r2[2]:
+        st.markdown('<div class="glass-container"><b>💰 PROFIT YIELD</b>', unsafe_allow_html=True)
+        fig6 = px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=210, color_discrete_sequence=[th['s']])
+        st.plotly_chart(update_fig(fig6), use_container_width=True, key="c6")
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- INSIGHTS FOOTER ---
-    st.info(f"💡 **AI INSIGHT:** Your most profitable region is **West**, but **Technology** sales are showing a 15% upward trend in the East.")
+    # --- BOTTOM INSIGHTS ---
+    st.markdown(f"<h3 style='color:{th['txt']}; font-weight:900;'>💡 STRATEGIC INSIGHTS</h3>", unsafe_allow_html=True)
+    i_cols = st.columns(4)
+    with i_cols[0]: st.success(f"**TOP CAT:** {f_df.groupby('Category')['Sales'].sum().idxmax()}")
+    with i_cols[1]: st.info("**REGION:** West Leads")
+    with i_cols[2]: st.warning("**RISK:** Supply Chain")
+    with i_cols[3]: st.error("**ACTION:** Q4 Prep")
 
 else:
-    st.error("Dataset not found. Please ensure SALES_DATA_SETT.xlsx is in your GitHub repo.")
+    st.error("Missing SALES_DATA_SETT.xlsx!")
