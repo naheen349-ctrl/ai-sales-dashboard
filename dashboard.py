@@ -1,61 +1,47 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# --- PAGE CONFIG ---
+# --- PAGE CONFIG (LAPTOP OPTIMIZED) ---
 st.set_page_config(page_title="AI Sales Dashboard", layout="wide", initial_sidebar_state="expanded")
 
-# --- CUSTOM CSS FOR HIGH-FIDELITY REPLICA ---
-st.markdown("""
+# --- THEME SELECTION ---
+with st.sidebar:
+    st.markdown("### 🎨 DASHBOARD THEME")
+    theme_choice = st.selectbox("Select Theme", ["Original Pink/Blue", "Emerald Executive", "Midnight Neon", "Royal Gold"])
+
+# Theme Mapping
+themes = {
+    "Original Pink/Blue": {"p": "#F7A8B8", "s": "#5DADE2", "bg": "#F8FAFC", "card": "#FFFFFF", "txt": "#2C3E50"},
+    "Emerald Executive": {"p": "#27AE60", "s": "#2C3E50", "bg": "#F1F9F4", "card": "#FFFFFF", "txt": "#1B2631"},
+    "Midnight Neon": {"p": "#BB86FC", "s": "#03DAC6", "bg": "#0E1117", "card": "#1E1E1E", "txt": "#FFFFFF"},
+    "Royal Gold": {"p": "#D4AF37", "s": "#1B2631", "bg": "#FDFCFB", "card": "#FFFFFF", "txt": "#1B2631"}
+}
+
+th = themes[theme_choice]
+
+# --- CUSTOM CSS FOR EXACT REPLICATION ---
+st.markdown(f"""
     <style>
-        /* Background and Global Font */
-        .stApp { background-color: #F0F2F6; font-family: 'Inter', sans-serif; }
-        .block-container { padding-top: 1rem; padding-bottom: 0rem; }
-
-        /* Sidebar Styling to match image */
-        section[data-testid="stSidebar"] {
-            background-color: #FFFFFF !important;
-            border-right: 1px solid #E0E0E0;
-        }
-        .sidebar-box {
-            background-color: #E3F2FD;
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #BBDEFB;
-        }
-        .sidebar-box-pink {
-            background-color: #FCE4EC;
-            border-radius: 10px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #F8BBD0;
-        }
-
-        /* Metric Card Styling */
-        div[data-testid="stMetric"] {
-            background-color: #ffffff;
-            border: 1px solid #E0E0E0;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-        }
-        div[data-testid="stMetricValue"] { font-size: 24px !important; font-weight: bold !important; color: #2C3E50 !important; }
-
-        /* Chart Container Styling */
-        .chart-card {
-            background-color: #FFFFFF;
-            border-radius: 15px;
-            padding: 15px;
-            border: 1px solid #E0E0E0;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.03);
-            margin-bottom: 15px;
-        }
+        .stApp {{ background-color: {th['bg']}; color: {th['txt']}; }}
+        .block-container {{ padding-top: 1.5rem; padding-bottom: 0rem; max-width: 100%; }}
         
-        /* Titles */
-        .main-header { font-size: 30px !important; font-weight: 800; color: #1A1A1A; margin-bottom: 20px; }
-        .chart-title { font-size: 14px; font-weight: bold; color: #555; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        /* Sidebar Filter Boxes */
+        .filter-header-pink {{ background-color: {th['p']}33; padding: 5px 10px; border-radius: 8px 8px 0 0; border: 1px solid {th['p']}; font-weight: bold; font-size: 14px; margin-top: 10px; }}
+        .filter-header-blue {{ background-color: {th['s']}33; padding: 5px 10px; border-radius: 8px 8px 0 0; border: 1px solid {th['s']}; font-weight: bold; font-size: 14px; margin-top: 10px; }}
+        .filter-body {{ background-color: {th['card']}; padding: 10px; border: 1px solid #DDD; border-top: none; border-radius: 0 0 8px 8px; margin-bottom: 10px; }}
+        
+        /* KPI & Chart Cards */
+        .box {{ background-color: {th['card']}; border: 1px solid #E0E0E0; border-radius: 12px; padding: 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.02); }}
+        .metric-title {{ font-size: 12px; color: #666; font-weight: 500; }}
+        .metric-value {{ font-size: 20px; font-weight: 800; color: {th['txt']}; }}
+        
+        /* Main Header */
+        .main-header {{ font-size: 26px !important; font-weight: 800; color: {th['txt']}; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }}
+        
+        /* Hide Streamlit elements for clean look */
+        #MainMenu {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
     </style>
     """, unsafe_allow_html=True)
 
@@ -69,124 +55,137 @@ def load_data():
         df['Month'] = df['Order Date'].dt.strftime('%b')
         df['Month_Num'] = df['Order Date'].dt.month
         return df
-    except:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 df = load_data()
 
 if not df.empty:
-    # --- SIDEBAR FILTERS (IMAGE REPLICA) ---
+    # --- SIDEBAR FILTERS (EXACT COLUMN STYLE) ---
     with st.sidebar:
         st.markdown("### 🔍 FILTERS")
         
-        st.markdown('<div class="sidebar-box-pink"><b>🌎 Region</b>', unsafe_allow_html=True)
-        selected_regions = [r for r in df['Region'].unique() if st.checkbox(r, value=True, key=f"r_{r}")]
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Region Filter
+        st.markdown(f'<div class="filter-header-pink">🌎 Region</div>', unsafe_allow_html=True)
+        with st.container():
+            sel_region = [r for r in df['Region'].unique() if st.checkbox(r, True, key=f"r{r}")]
         
-        st.markdown('<div class="sidebar-box"><b>📦 Category</b>', unsafe_allow_html=True)
-        selected_cats = [c for c in df['Category'].unique() if st.checkbox(c, value=True, key=f"c_{c}")]
-        st.markdown('</div>', unsafe_allow_html=True)
+        # Category Filter
+        st.markdown(f'<div class="filter-header-blue">📦 Category</div>', unsafe_allow_html=True)
+        with st.container():
+            sel_cat = [c for c in df['Category'].unique() if st.checkbox(c, True, key=f"c{c}")]
         
-        st.markdown('<div class="sidebar-box"><b>👥 Segment</b>', unsafe_allow_html=True)
-        selected_segs = [s for s in df['Segment'].unique() if st.checkbox(s, value=True, key=f"s_{s}")]
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown('<div class="sidebar-box-pink"><b>📅 Year</b>', unsafe_allow_html=True)
-        cols = st.columns(2)
+        # Segment Filter
+        st.markdown(f'<div class="filter-header-blue">👥 Segment</div>', unsafe_allow_html=True)
+        with st.container():
+            sel_seg = [s for s in df['Segment'].unique() if st.checkbox(s, True, key=f"s{s}")]
+
+        # Year Filter (Grid Style)
+        st.markdown(f'<div class="filter-header-pink">📅 Year</div>', unsafe_allow_html=True)
+        y_cols = st.columns(2)
         years = sorted(df['Year'].unique())
-        selected_years = []
+        sel_year = []
         for i, y in enumerate(years):
-            with cols[i % 2]:
-                if st.checkbox(str(y), value=True, key=f"y_{y}"):
-                    selected_years.append(y)
-        st.markdown('</div>', unsafe_allow_html=True)
+            if y_cols[i%2].checkbox(str(y), True, key=f"y{y}"): sel_year.append(y)
 
-        f_df = df[(df['Region'].isin(selected_regions)) & (df['Category'].isin(selected_cats)) & 
-                  (df['Segment'].isin(selected_segs)) & (df['Year'].isin(selected_years))]
+        f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & 
+                  (df['Segment'].isin(sel_seg)) & (df['Year'].isin(sel_year))]
 
-    # --- HEADER ---
-    st.markdown('<div class="main-header">🤖 AI POWERED SALES ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
+    # --- MAIN CONTENT ---
+    st.markdown(f'<div class="main-header">🤖 AI POWERED SALES ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
 
-    # --- ROW 1: METRICS ---
-    st.markdown('<div class="chart-title">📊 KEY METRICS</div>', unsafe_allow_html=True)
+    # --- ROW 1: 8 KEY METRICS ---
+    st.markdown("📊 **KEY METRICS**")
     m_row1 = st.columns(4)
     m_row2 = st.columns(4)
     
-    metrics = [
-        ("💰 Total Sales", f"${f_df['Sales'].sum()/1e6:.1f}M"),
-        ("📈 Total Profit", f"${f_df['Profit'].sum()/1e3:.0f}K"),
-        ("🛒 Total Orders", f"{f_df['Order ID'].nunique():,}"),
-        ("💵 Avg Order Value", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}"),
-        ("📦 Total Quantity", f"{f_df['Quantity'].sum()/1e3:.0f}K"),
-        ("🏷️ Avg Discount", f"{(f_df['Discount'].mean()*100):.0f}%"),
-        ("📊 Profit Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%"),
-        ("🚚 Avg Shipping", "4 days")
-    ]
-    
-    for i in range(4):
-        m_row1[i].metric(metrics[i][0], metrics[i][1])
-        m_row2[i].metric(metrics[i+4][0], metrics[i+4][1])
+    # Calculation helper
+    def draw_metric(col, icon, label, val):
+        col.markdown(f"""<div class="box">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="background:{th['p']}22; padding:8px; border-radius:8px; font-size:20px;">{icon}</div>
+                <div><div class="metric-title">{label}</div><div class="metric-value">{val}</div></div>
+            </div>
+        </div>""", unsafe_allow_html=True)
 
-    # --- ROW 2: CHARTS ---
+    draw_metric(m_row1[0], "💰", "Total Sales", f"${f_df['Sales'].sum()/1e6:.1f}M")
+    draw_metric(m_row1[1], "📈", "Total Profit", f"${f_df['Profit'].sum()/1e3:.0f}K")
+    draw_metric(m_row1[2], "🛒", "Total Orders", f"{f_df['Order ID'].nunique():,}")
+    draw_metric(m_row1[3], "💵", "Avg Order Value", f"${f_df['Sales'].sum()/f_df['Order ID'].nunique():.0f}")
+    
+    draw_metric(m_row2[0], "📦", "Total Quantity", f"{f_df['Quantity'].sum()/1e3:.0f}K")
+    draw_metric(m_row2[1], "🏷️", "Avg Discount", f"{(f_df['Discount'].mean()*100):.0f}%")
+    draw_metric(m_row2[2], "📊", "Profit Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%")
+    draw_metric(m_row2[3], "🚚", "Avg Shipping", "4 days")
+
+    st.write("") # Spacer
+
+    # --- ROW 2: PRIMARY CHARTS ---
     c1, c2, c3 = st.columns([1.5, 1, 1])
     
     with c1:
-        st.markdown('<div class="chart-card"><div class="chart-title">📊 SALES BY CATEGORY</div>', unsafe_allow_html=True)
-        fig = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', 
-                     height=200, color_discrete_sequence=['#5DADE2'])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="box"><b>📊 SALES BY CATEGORY</b>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Category')['Sales'].sum().reset_index(), x='Category', y='Sales', height=180, color_discrete_sequence=[th['s']])
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c2:
-        st.markdown('<div class="chart-card"><div class="chart-title">🌎 SALES BY REGION</div>', unsafe_allow_html=True)
-        fig = px.bar(f_df.groupby('Region')['Sales'].sum().reset_index(), x='Sales', y='Region', 
-                     orientation='h', height=200, color_discrete_sequence=['#F7A8B8'])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="box"><b>🌍 SALES BY REGION</b>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Region')['Sales'].sum().reset_index(), x='Sales', y='Region', orientation='h', height=180, color_discrete_sequence=[th['p']])
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c3:
-        st.markdown('<div class="chart-card"><div class="chart-title">🏆 TOP 5 PRODUCTS</div>', unsafe_allow_html=True)
+        st.markdown('<div class="box"><b>🏆 TOP 5 PRODUCTS</b>', unsafe_allow_html=True)
         top_p = f_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
-        fig = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=200, color_discrete_sequence=['#5DADE2'])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), yaxis={'visible': False}, paper_bgcolor='white', plot_bgcolor='white')
-        st.plotly_chart(fig, use_container_width=True)
+        fig = px.bar(top_p, x='Sales', y='Product Name', orientation='h', height=180, color_discrete_sequence=[th['s']])
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), yaxis={'visible': False}, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ROW 3: TRENDS AND SHARE ---
+    # --- ROW 3: SECONDARY CHARTS ---
     c4, c5, c6 = st.columns([1.5, 1, 1])
 
     with c4:
-        st.markdown('<div class="chart-card"><div class="chart-title">📈 MONTHLY TREND</div>', unsafe_allow_html=True)
+        st.markdown('<div class="box"><b>📈 MONTHLY TREND</b>', unsafe_allow_html=True)
         trend = f_df.groupby(['Month_Num', 'Month'])['Sales'].sum().reset_index().sort_values('Month_Num')
-        fig = px.line(trend, x='Month', y='Sales', height=200, color_discrete_sequence=['#5DADE2'])
+        fig = px.line(trend, x='Month', y='Sales', height=180, color_discrete_sequence=[th['s']])
         fig.update_traces(fill='toself')
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
-        st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c5:
-        st.markdown('<div class="chart-card"><div class="chart-title">👥 SEGMENT SHARE</div>', unsafe_allow_html=True)
-        fig = px.pie(f_df, names='Segment', values='Sales', hole=0.6, height=200, color_discrete_sequence=['#5DADE2', '#F7A8B8', '#D2B4DE'])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="box"><b>👥 SEGMENT SHARE</b>', unsafe_allow_html=True)
+        fig = px.pie(f_df, names='Segment', values='Sales', hole=0.6, height=180, color_discrete_sequence=[th['s'], th['p'], "#D2B4DE"])
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c6:
-        st.markdown('<div class="chart-card"><div class="chart-title">💰 PROFIT BY CATEGORY</div>', unsafe_allow_html=True)
-        fig = px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=200, color_discrete_sequence=['#F7A8B8'])
-        fig.update_layout(margin=dict(l=0,r=0,t=0,b=0), paper_bgcolor='white', plot_bgcolor='white')
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="box"><b>💰 PROFIT BY CATEGORY</b>', unsafe_allow_html=True)
+        fig = px.bar(f_df.groupby('Category')['Profit'].sum().reset_index(), x='Category', y='Profit', height=180, color_discrete_sequence=[th['p']])
+        fig.update_layout(margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color=th['txt'])
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- ROW 4: INSIGHTS ---
-    st.markdown('<div class="chart-title">💡 KEY INSIGHTS</div>', unsafe_allow_html=True)
-    i1, i2, i3, i4 = st.columns(4)
-    i1.info("🏆 **Best Cat:** Technology")
-    i2.info("🌎 **Best Region:** West")
-    i3.success("✅ **Profitable:** 91.2%")
-    i4.warning("📈 **Peak:** December")
+    # --- ROW 4: KEY INSIGHTS ---
+    st.markdown("💡 **KEY INSIGHTS**")
+    i_cols = st.columns(4)
+    best_c = f_df.groupby('Category')['Sales'].sum().idxmax()
+    
+    def draw_insight(col, icon, text, val):
+        col.markdown(f"""<div class="box" style="border-left: 5px solid {th['s']};">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">{icon}</span>
+                <div><div class="metric-title">{text}</div><div style="font-weight:bold;">{val}</div></div>
+            </div>
+        </div>""", unsafe_allow_html=True)
 
-else:
-    st.warning("Data file not found.")
+    draw_insight(i_cols[0], "🏆", "Best Cat", best_c)
+    draw_insight(i_cols[1], "🌎", "Best Region", "West")
+    draw_insight(i_cols[2], "✅", "Profitable", "91.2%")
+    draw_insight(i_cols[3], "📈", "Peak Month", "December")
+
+    st.markdown(f"<div style='text-align:center; padding:20px; font-size:12px;'>🤖 AI Dashboard | Data: SALES_DATA_SETT.xlsx | {len(f_df):,} rows</div>", unsafe_allow_html=True)
