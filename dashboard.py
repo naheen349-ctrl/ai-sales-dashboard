@@ -18,44 +18,61 @@ themes = {
 }
 th = themes[theme_choice]
 
-# --- CSS FIX FOR TITLE VISIBILITY ---
+# --- THE ULTIMATE CSS FIX FOR VISIBILITY ---
 st.markdown(f"""
     <style>
-        .stApp {{ background-color: {th['bg']}; color: {th['txt']}; }}
+        /* This removes the blank space at the very top of Streamlit */
+        header[data-testid="stHeader"] {{
+            visibility: hidden;
+            height: 0% !important;
+        }}
         
-        /* Forces the main container to show the title clearly */
+        .stApp {{ 
+            background-color: {th['bg']}; 
+            color: {th['txt']}; 
+        }}
+        
+        /* Forces the container to start at the absolute top (0px) */
         .block-container {{ 
             padding-top: 0rem !important; 
-            padding-bottom: 0rem !important; 
-            margin-top: -30px; 
+            margin-top: -60px !important; 
         }}
 
-        /* Header Styling */
-        .main-header {{ 
+        /* The Dashboard Title Header - Pinned and Bold */
+        .dashboard-title-box {{ 
             background-color: {th['card']};
-            padding: 15px;
-            border-radius: 0px 0px 15px 15px;
-            font-size: 28px !important; 
-            font-weight: 800; 
-            color: {th['txt']}; 
-            display: flex; 
-            align-items: center; 
+            width: 100%;
+            padding: 20px;
+            border-bottom: 3px solid {th['s']};
+            text-align: left;
+            margin-bottom: 25px;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
+        }}
+        
+        .main-header-text {{
+            font-size: 32px !important;
+            font-weight: 900 !important;
+            color: {th['txt']};
+            letter-spacing: -1px;
+            display: flex;
+            align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.05);
-            border: 1px solid #EEE;
         }}
 
-        /* Sidebar & Filters */
-        .filter-header-pink {{ background-color: {th['p']}44; padding: 8px 12px; border-radius: 10px 10px 0 0; border: 1.5px solid {th['p']}; font-weight: bold; font-size: 14px; margin-top: 15px; }}
-        .filter-header-blue {{ background-color: {th['s']}44; padding: 8px 12px; border-radius: 10px 10px 0 0; border: 1.5px solid {th['s']}; font-weight: bold; font-size: 14px; margin-top: 15px; }}
-        .filter-body {{ background-color: {th['card']}; padding: 10px; border: 1px solid #DDD; border-top: none; border-radius: 0 0 10px 10px; margin-bottom: 10px; }}
-        
-        /* Card Containers */
-        .box {{ background-color: {th['card']}; border: 1px solid #E0E0E0; border-radius: 12px; padding: 12px; box-shadow: 2px 2px 8px rgba(0,0,0,0.02); }}
-        .metric-title {{ font-size: 12px; color: #777; font-weight: 500; }}
-        .metric-value {{ font-size: 22px; font-weight: 800; color: {th['txt']}; }}
+        /* Card & Filter Styling */
+        .box {{ background-color: {th['card']}; border: 1px solid #DDD; border-radius: 12px; padding: 15px; }}
+        .filter-header {{ background-color: {th['p']}33; padding: 8px; border: 1px solid {th['p']}; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px; }}
+        .filter-body {{ background-color: {th['card']}; padding: 10px; border: 1px solid #DDD; border-top:none; border-radius: 0 0 8px 8px; margin-bottom: 10px; }}
     </style>
+    """, unsafe_allow_html=True)
+
+# --- HEADER (NOW FORCED TO THE TOP) ---
+st.markdown(f"""
+    <div class="dashboard-title-box">
+        <div class="main-header-text">
+            <span>🤖</span> AI POWERED SALES ANALYTICS DASHBOARD
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
 # --- DATA LOADING ---
@@ -73,22 +90,19 @@ def load_data():
 df = load_data()
 
 if not df.empty:
-    # --- HEADER SECTION (FIXED VISIBILITY) ---
-    st.markdown(f'<div class="main-header">🤖 AI POWERED SALES ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
-
     # --- SIDEBAR FILTERS ---
     with st.sidebar:
         st.markdown("### 🔍 FILTERS")
         
-        st.markdown(f'<div class="filter-header-pink">🌎 Region</div>', unsafe_allow_html=True)
+        st.markdown('<div class="filter-header">🌎 Region</div>', unsafe_allow_html=True)
         with st.container():
             sel_region = [r for r in df['Region'].unique() if st.checkbox(r, True, key=f"r{r}")]
         
-        st.markdown(f'<div class="filter-header-blue">📦 Category</div>', unsafe_allow_html=True)
+        st.markdown('<div class="filter-header">📦 Category</div>', unsafe_allow_html=True)
         with st.container():
             sel_cat = [c for c in df['Category'].unique() if st.checkbox(c, True, key=f"c{c}")]
         
-        st.markdown(f'<div class="filter-header-pink">📅 Year</div>', unsafe_allow_html=True)
+        st.markdown('<div class="filter-header">📅 Year</div>', unsafe_allow_html=True)
         y_cols = st.columns(2)
         years = sorted(df['Year'].unique())
         sel_year = []
@@ -98,15 +112,14 @@ if not df.empty:
         f_df = df[(df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))]
 
     # --- KPI ROW (8 METRICS) ---
+    st.write("📊 **KEY METRICS**")
     m_row1 = st.columns(4)
     m_row2 = st.columns(4)
     
     def draw_metric(col, icon, label, val):
-        col.markdown(f"""<div class="box">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div style="background:{th['s']}22; padding:8px; border-radius:8px; font-size:20px;">{icon}</div>
-                <div><div class="metric-title">{label}</div><div class="metric-value">{val}</div></div>
-            </div>
+        col.markdown(f"""<div class="box" style="display:flex; align-items:center; gap:12px;">
+            <div style="font-size:24px;">{icon}</div>
+            <div><div style="font-size:12px; color:#888;">{label}</div><div style="font-size:20px; font-weight:bold;">{val}</div></div>
         </div>""", unsafe_allow_html=True)
 
     draw_metric(m_row1[0], "💰", "Total Sales", f"${f_df['Sales'].sum()/1e6:.1f}M")
@@ -119,9 +132,9 @@ if not df.empty:
     draw_metric(m_row2[2], "📊", "Profit Margin", f"{(f_df['Profit'].sum()/f_df['Sales'].sum()*100):.0f}%" if f_df['Sales'].sum() > 0 else "0%")
     draw_metric(m_row2[3], "🚚", "Avg Shipping", "4 days")
 
-    st.write("---")
+    st.write("")
 
-    # --- CHARTS GRID ---
+    # --- VISUALS GRID ---
     c1, c2, c3 = st.columns([1.2, 1, 1])
     with c1:
         st.markdown('<div class="box"><b>📊 Sales by Category</b>', unsafe_allow_html=True)
