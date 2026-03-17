@@ -479,4 +479,210 @@ if not df.empty:
             
             # Treemap for hierarchical view
             if 'Sub-Category' in f_df.columns:
-                cat_data = f_df.groupby([
+                cat_data = f_df.groupby(['Category', 'Sub-Category'])['Sales'].sum().reset_index()
+                if not cat_data.empty:
+                    fig = px.treemap(cat_data, path=['Category', 'Sub-Category'], values='Sales',
+                                    color='Sales', color_continuous_scale='Viridis')
+                    
+                    fig.update_layout(margin=dict(t=30, l=5, r=5, b=5))
+                    st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                else:
+                    st.info("No category data available")
+            else:
+                st.info("Sub-Category data not available")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r2[1]:
+            st.markdown('<div class="glass-container"><b>📊 PROFITABILITY MATRIX</b>', unsafe_allow_html=True)
+            
+            # Scatter plot: Sales vs Profit Margin
+            segment_data = f_df.groupby('Segment').agg({
+                'Sales': 'sum',
+                'Profit': 'sum',
+                'Quantity': 'sum'
+            }).reset_index()
+            
+            if not segment_data.empty:
+                segment_data['Margin'] = (segment_data['Profit'] / segment_data['Sales'] * 100).round(1)
+                segment_data['Size'] = segment_data['Quantity'] * 10
+                
+                fig = px.scatter(segment_data, x='Sales', y='Margin', size='Size', 
+                                text='Segment', color='Segment',
+                                color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_traces(textposition='top center')
+                fig.update_layout(
+                    title="Segment Performance Matrix",
+                    xaxis_title="Sales ($)",
+                    yaxis_title="Profit Margin (%)"
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No segment data available")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r2[2]:
+            st.markdown('<div class="glass-container"><b>📅 SEASONAL PATTERNS</b>', unsafe_allow_html=True)
+            
+            # Heatmap of sales by month and day
+            try:
+                # Create pivot table
+                if not f_df.empty and 'Day_of_Week' in f_df.columns and 'Month' in f_df.columns:
+                    heat_data = f_df.pivot_table(
+                        values='Sales', 
+                        index='Day_of_Week', 
+                        columns='Month',
+                        aggfunc='sum',
+                        fill_value=0
+                    )
+                    
+                    # Order days correctly
+                    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                    # Reindex only if all days exist
+                    existing_days = [d for d in day_order if d in heat_data.index]
+                    if existing_days:
+                        heat_data = heat_data.reindex(existing_days)
+                        
+                        fig = px.imshow(heat_data, 
+                                       text_auto=True,
+                                       aspect="auto",
+                                       color_continuous_scale='Viridis')
+                        
+                        fig.update_layout(
+                            title="Sales Heatmap: Day vs Month",
+                            xaxis_title="Month",
+                            yaxis_title="Day of Week"
+                        )
+                        
+                        st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                    else:
+                        st.info("Insufficient data for heatmap")
+                else:
+                    st.info("Required columns not available for heatmap")
+            except Exception as e:
+                st.info("Could not generate heatmap with current data")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row 3: Additional Insights
+        st.markdown("### 💡 DEEP DIVE INSIGHTS")
+        r3 = st.columns(2)
+        
+        with r3[0]:
+            st.markdown('<div class="glass-container"><b>📈 CUMULATIVE PERFORMANCE</b>', unsafe_allow_html=True)
+            
+            # Line chart for cumulative sales - FIXED: Removed fillcolor property that was causing error
+            daily_sales = f_df.groupby('Order Date')['Sales'].sum().reset_index()
+            daily_sales['Cumulative'] = daily_sales['Sales'].cumsum()
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=daily_sales['Order Date'],
+                y=daily_sales['Cumulative'],
+                mode='lines+markers',
+                name='Cumulative Sales',
+                line=dict(color=th['p'], width=3),
+                fill='tozeroy',
+                fillcolor=f"rgba{tuple(int(th['p'].lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.2,)}"  # Fixed fillcolor format
+            ))
+            
+            fig.update_layout(
+                title="Cumulative Sales Over Time",
+                xaxis_title="Date",
+                yaxis_title="Cumulative Sales ($)"
+            )
+            
+            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r3[1]:
+            st.markdown('<div class="glass-container"><b>📊 DISTRIBUTION ANALYSIS</b>', unsafe_allow_html=True)
+            
+            # Box plot of sales by category
+            if not f_df.empty and 'Category' in f_df.columns:
+                fig = px.box(f_df, x='Category', y='Sales', color='Category',
+                            color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_layout(
+                    title="Sales Distribution by Category",
+                    xaxis_title="Category",
+                    yaxis_title="Sales ($)",
+                    showlegend=False
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No data available for distribution analysis")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # --- BOTTOM INSIGHTS WITH METRICS ---
+        st.markdown("---")
+        st.markdown(f"<h3 style='color:{th['p']}; font-weight:900;'>💡 AI-POWERED INSIGHTS</h3>", unsafe_allow_html=True)
+        
+        # Generate insights based on data
+        if not f_df.empty:
+            top_category = f_df.groupby('Category')['Sales'].sum().idxmax()
+            top_region = f_df.groupby('Region')['Sales'].sum().idxmax()
+            best_month = f_df.groupby('Month')['Sales'].sum().idxmax()
+            avg_margin = (f_df['Profit'].sum() / f_df['Sales'].sum() * 100).round(1)
+            
+            i_cols = st.columns(4)
+            with i_cols[0]:
+                st.success(f"🏆 **Top Category:** {top_category} leads with ${f_df.groupby('Category')['Sales'].sum().max()/1e3:.0f}K in sales")
+            with i_cols[1]:
+                st.info(f"📍 **Best Region:** {top_region} shows strongest performance")
+            with i_cols[2]:
+                st.warning(f"📅 **Peak Month:** {best_month} has highest sales volume")
+            with i_cols[3]:
+                if avg_margin > 15:
+                    st.success(f"💰 **Healthy Margin:** {avg_margin}% average profit margin")
+                else:
+                    st.error(f"⚠️ **Margin Alert:** {avg_margin}% below target")
+        else:
+            st.warning("No data available for the selected filters")
+        
+        # --- DATA TABLE WITH CONDITIONAL FORMATTING ---
+        with st.expander("📋 VIEW DETAILED DATA", expanded=False):
+            st.markdown('<div class="glass-container">', unsafe_allow_html=True)
+            
+            if not f_df.empty:
+                # Summary table
+                summary = f_df.groupby(['Region', 'Category']).agg({
+                    'Sales': 'sum',
+                    'Profit': 'sum',
+                    'Quantity': 'sum',
+                    'Order ID': 'nunique'
+                }).round(2).reset_index()
+                
+                summary.columns = ['Region', 'Category', 'Sales ($)', 'Profit ($)', 'Units Sold', 'Orders']
+                summary['Profit Margin (%)'] = (summary['Profit ($)'] / summary['Sales ($)'] * 100).round(1)
+                
+                # Display the dataframe
+                st.dataframe(
+                    summary.style.format({
+                        'Sales ($)': '${:,.0f}',
+                        'Profit ($)': '${:,.0f}',
+                        'Units Sold': '{:,.0f}',
+                        'Orders': '{:,.0f}',
+                        'Profit Margin (%)': '{:.1f}%'
+                    }),
+                    use_container_width=True,
+                    height=400
+                )
+            else:
+                st.info("No data available for the current selection")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning("No data available for the selected filters. Please adjust your filter criteria.")
+else:
+    # Error state with creative design
+    st.markdown(f"""
+        <div style='text-align:center; padding:100px;'>
+            <h1 style='color:{th['p']}; font-size:72px;'>📁</h1>
+            <h2 style='color:{th['txt']};'>Data File Not Found</h2>
+            <p style='color:{th['txt']}80;'>Please ensure SALES_DATA_SETT.xlsx is in the correct directory</p>
+        </div>
+    """, unsafe_allow_html=True)
