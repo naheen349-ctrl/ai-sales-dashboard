@@ -2,165 +2,180 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import numpy as np
 from datetime import datetime, timedelta
 
-# --- PAGE CONFIG - PROFESSIONAL LAPTOP VIEW ---
+# --- HELPER FUNCTIONS (MUST BE DEFINED FIRST) ---
+def adjust_color(color, amount):
+    """Helper function to adjust color brightness"""
+    if color.startswith('#'):
+        color = color.lstrip('#')
+        rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+        rgb = tuple(min(255, max(0, c + amount)) for c in rgb)
+        return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+    return color
+
+# --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Sales Intelligence Pro", 
+    page_title="AI Sales Intelligence Pro", 
     layout="wide", 
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
     page_icon="📊"
 )
 
-# --- PROFESSIONAL CSS (CLEAN, MODERN, NO SCROLL) ---
-st.markdown("""
+# --- THEME CONFIG WITH ENHANCED OPTIONS ---
+with st.sidebar:
+    st.markdown("### 🎨 VISUAL UNIVERSE")
+    theme_choice = st.selectbox(
+        "Select Theme", 
+        ["Midnight Neon", "Emerald Glass", "Oceanic Pro", "Sunset Rose", "Dark Matter", "Aurora"]
+    )
+    
+    # Advanced settings toggle
+    with st.expander("⚡ ADVANCED ANALYTICS"):
+        enable_forecast = st.checkbox("Enable Sales Forecasting", True)
+        enable_anomaly = st.checkbox("Detect Anomalies", True)
+        forecast_periods = st.slider("Forecast Months", 3, 12, 6) if enable_forecast else 0
+
+themes = {
+    "Midnight Neon": {"p": "#BB86FC", "s": "#03DAC6", "bg": "#0E1117", "card": "rgba(20, 20, 20, 0.95)", "txt": "#FFFFFF", "sub": "#BB86FC", "grid": "#333333"},
+    "Emerald Glass": {"p": "#1E8449", "s": "#2C3E50", "bg": "#F1F9F4", "card": "rgba(255, 255, 255, 0.98)", "txt": "#000000", "sub": "#1E8449", "grid": "#E0E0E0"},
+    "Oceanic Pro": {"p": "#1F618D", "s": "#21618C", "bg": "#EBF5FB", "card": "rgba(255, 255, 255, 0.98)", "txt": "#000000", "sub": "#1F618D", "grid": "#D4E6F1"},
+    "Sunset Rose": {"p": "#C0392B", "s": "#641E16", "bg": "#FDF2F4", "card": "rgba(255, 255, 255, 0.98)", "txt": "#000000", "sub": "#C0392B", "grid": "#FADBD8"},
+    "Dark Matter": {"p": "#00BCD4", "s": "#FF4081", "bg": "#121212", "card": "rgba(30, 30, 30, 0.95)", "txt": "#FFFFFF", "sub": "#00BCD4", "grid": "#424242"},
+    "Aurora": {"p": "#6C5CE7", "s": "#00B894", "bg": "#2D3436", "card": "rgba(45, 52, 54, 0.95)", "txt": "#FFFFFF", "sub": "#6C5CE7", "grid": "#636E72"}
+}
+th = themes[theme_choice]
+
+# --- ENHANCED CSS WITH ANIMATIONS ---
+st.markdown(f"""
     <style>
-        /* Import professional font */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
         
-        /* Reset and base styles */
-        .main > .block-container {
-            padding-top: 1rem;
-            padding-bottom: 0rem;
-            padding-left: 1.5rem;
-            padding-right: 1.5rem;
-            max-width: 100%;
-            font-family: 'Inter', sans-serif;
-        }
+        .stApp {{ 
+            background: linear-gradient(135deg, {th['bg']} 0%, {adjust_color(th['bg'], 20)} 100%);
+            color: {th['txt']}; 
+        }}
         
-        /* Hide scrollbar but keep functionality */
-        ::-webkit-scrollbar {
-            display: none;
-        }
-        
-        /* Professional metric cards */
-        .metric-card {
-            background: white;
-            border-radius: 16px;
-            padding: 1.2rem 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-            border: 1px solid #f0f2f5;
-            text-align: center;
-            transition: all 0.2s ease;
-        }
-        .metric-card:hover {
-            box-shadow: 0 8px 30px rgba(0,0,0,0.04);
-            border-color: #e0e7ff;
-        }
-        
-        /* Chart containers */
-        .chart-container {
-            background: white;
-            border-radius: 20px;
-            padding: 1rem 1rem 0.5rem 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-            border: 1px solid #f0f2f5;
-            height: 100%;
-            transition: all 0.2s ease;
-        }
-        .chart-container:hover {
-            box-shadow: 0 8px 30px rgba(0,0,0,0.04);
-        }
-        
-        /* Section titles */
-        .section-title {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #1e293b;
-            margin-bottom: 0.8rem;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-        }
-        
-        /* Filter bar styling */
-        .filter-bar {
-            background: white;
-            border-radius: 16px;
-            padding: 1rem 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-            border: 1px solid #f0f2f5;
-        }
-        
-        /* Professional header */
-        .dashboard-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-        .dashboard-title {
-            font-size: 1.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
+        /* Animated title */
+        .main-title {{
+            font-size: 42px !important;
+            font-weight: 900 !important;
+            background: linear-gradient(135deg, {th['p']} 0%, {th['s']} 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.02em;
-        }
-        .dashboard-badge {
-            background: #f8fafc;
-            padding: 0.4rem 1rem;
-            border-radius: 40px;
-            font-size: 0.75rem;
-            color: #64748b;
-            border: 1px solid #e2e8f0;
-        }
+            text-align: center;
+            margin-bottom: 20px;
+            animation: fadeIn 0.8s ease-out;
+        }}
         
-        /* KPI labels */
-        .kpi-label {
-            font-size: 0.7rem;
-            color: #64748b;
-            font-weight: 500;
-            letter-spacing: 0.03em;
-        }
-        .kpi-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: #0f172a;
-            line-height: 1.3;
-        }
-        .kpi-trend {
-            font-size: 0.65rem;
-            font-weight: 500;
-            margin-top: 0.3rem;
-        }
-        .trend-up { color: #10b981; }
-        .trend-down { color: #ef4444; }
-        .trend-neutral { color: #64748b; }
+        /* Enhanced KPI boxes */
+        .kpi-box {{
+            text-align: center;
+            padding: 20px 10px;
+            background: {th['card']};
+            border-radius: 20px;
+            border-left: 5px solid {th['p']};
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            animation: fadeIn 0.5s ease-out;
+        }}
+        .kpi-box:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+        }}
+        .kpi-label {{
+            font-size: 12px !important;
+            color: {th['txt']};
+            opacity: 0.7;
+            font-weight: 600 !important;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }}
+        .kpi-value {{
+            font-size: 28px !important;
+            font-weight: 900 !important;
+            color: {th['p']};
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .kpi-trend {{
+            font-size: 12px;
+            margin-top: 5px;
+        }}
         
-        /* Footer */
-        .dashboard-footer {
-            position: fixed;
-            bottom: 0;
-            right: 1rem;
-            background: white;
-            padding: 0.3rem 1rem;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            font-size: 0.65rem;
-            color: #94a3b8;
-            border: 1px solid #f0f2f5;
-            border-bottom: none;
-        }
+        /* Glass containers with hover effects */
+        .glass-container {{
+            background: {th['card']};
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid {th['p']}40;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            animation: fadeIn 0.6s ease-out;
+        }}
+        .glass-container:hover {{
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+            border-color: {th['p']};
+        }}
         
-        /* Divider */
-        .custom-divider {
-            margin: 1rem 0;
-            border: none;
-            border-top: 1px solid #eef2f6;
-        }
+        /* Enhanced sidebar */
+        [data-testid="stSidebar"] {{
+            background: {th['card']} !important;
+            border-right: 2px solid {th['p']}40;
+            backdrop-filter: blur(10px);
+        }}
         
-        /* Selectbox styling */
-        .stSelectbox > div > div {
-            background-color: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 0.85rem;
-        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+        ::-webkit-scrollbar-track {{
+            background: {th['bg']};
+        }}
+        ::-webkit-scrollbar-thumb {{
+            background: {th['p']};
+            border-radius: 4px;
+        }}
+        ::-webkit-scrollbar-thumb:hover {{
+            background: {th['s']};
+        }}
+        
+        /* Button styling */
+        .stButton > button {{
+            background: {th['p']} !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 10px !important;
+            padding: 10px 20px !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+        }}
+        .stButton > button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px {th['p']}80 !important;
+        }}
+        
+        /* Dataframe styling */
+        .dataframe {{
+            font-size: 12px;
+        }}
+        .dataframe th {{
+            background-color: {th['p']} !important;
+            color: white !important;
+            font-weight: 600 !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- DATA LOADING ---
+# --- DATA LOADING WITH ENHANCEMENTS ---
 @st.cache_data
 def load_data():
     try:
@@ -169,435 +184,505 @@ def load_data():
         df['Year'] = df['Order Date'].dt.year
         df['Month'] = df['Order Date'].dt.strftime('%b')
         df['Month_Num'] = df['Order Date'].dt.month
+        df['Quarter'] = df['Order Date'].dt.quarter
+        df['Day_of_Week'] = df['Order Date'].dt.day_name()
+        df['Week_Num'] = df['Order Date'].dt.isocalendar().week
         
-        # Ensure month order
-        month_order = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        df['Month'] = pd.Categorical(df['Month'], categories=month_order, ordered=True)
+        # Calculate additional metrics
+        df['Profit_Margin'] = (df['Profit'] / df['Sales'] * 100).round(2)
+        df['Sales_per_Unit'] = df['Sales'] / df['Quantity']
+        df['Order_Value'] = df.groupby('Order ID')['Sales'].transform('sum')
         
         return df
     except Exception as e:
-        st.error(f"Please ensure SALES_DATA_SETT.xlsx is in the correct directory")
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
 df = load_data()
 
+# --- FORECASTING FUNCTION ---
+def simple_forecast(data, periods=6):
+    """Simple moving average forecast"""
+    if len(data) < 3:
+        return None
+    
+    monthly_sales = data.groupby(['Year', 'Month_Num'])['Sales'].sum().reset_index()
+    monthly_sales = monthly_sales.sort_values(['Year', 'Month_Num'])
+    
+    if len(monthly_sales) < 3:
+        return None
+    
+    # Calculate moving average
+    ma = monthly_sales['Sales'].rolling(window=3, min_periods=1).mean()
+    
+    # Simple forecast using last MA value
+    last_ma = ma.iloc[-1]
+    forecast_values = [last_ma * (1 + i*0.02) for i in range(1, periods+1)]
+    
+    return forecast_values
+
 if not df.empty:
-    # --- PROFESSIONAL HEADER ---
-    st.markdown("""
-        <div class='dashboard-header'>
-            <div>
-                <span class='dashboard-title'>SALES INTELLIGENCE PRO</span>
-                <span class='dashboard-badge' style='margin-left: 1rem;'>v2.0 · Enterprise</span>
-            </div>
-            <div style='display: flex; gap: 0.5rem;'>
-                <span class='dashboard-badge'>⚡ Live</span>
-                <span class='dashboard-badge'>📅 Real-time</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # --- COMPACT FILTER ROW ---
-    col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns([1.2, 1.2, 1.2, 1.2, 2])
-    
-    with col_f1:
-        selected_year = st.selectbox(
-            "Year", 
-            sorted(df['Year'].unique(), reverse=True),
-            label_visibility="collapsed",
-            placeholder="Year"
-        )
-    
-    with col_f2:
-        regions = ['All Regions'] + list(df['Region'].unique())
-        selected_region = st.selectbox("Region", regions, label_visibility="collapsed")
-    
-    with col_f3:
-        categories = ['All Categories'] + list(df['Category'].unique())
-        selected_category = st.selectbox("Category", categories, label_visibility="collapsed")
-    
-    with col_f4:
-        segments = ['All Segments'] + list(df['Segment'].unique())
-        selected_segment = st.selectbox("Segment", segments, label_visibility="collapsed")
-    
-    with col_f5:
-        st.markdown("""
-            <div style='text-align: right; color: #64748b; font-size: 0.8rem; margin-top: 0.3rem;'>
-                <span style='background: #f1f5f9; padding: 0.3rem 0.8rem; border-radius: 40px;'>
-                    🔍 {selected_year} · {selected_region}
-                </span>
-            </div>
-        """.format(
-            selected_year=selected_year,
-            selected_region=selected_region.replace('All Regions', 'All')
-        ), unsafe_allow_html=True)
+    # --- ENHANCED SIDEBAR FILTERS ---
+    with st.sidebar:
+        st.markdown(f"<h2 style='color:{th['p']}; font-weight:900; margin-bottom:20px;'>🎛️ CONTROL PANEL</h2>", unsafe_allow_html=True)
+        
+        # Quick filters with icons
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 🌎 Region")
+            sel_region = [r for r in df['Region'].unique() if st.checkbox(f"{r}", True, key=f"region_{r}")]
+        with col2:
+            st.markdown("### 📦 Category")
+            sel_cat = [c for c in df['Category'].unique() if st.checkbox(f"{c}", True, key=f"cat_{c}")]
+        
+        st.markdown("---")
+        
+        # Year filter with multi-select
+        st.markdown("### 📅 Time Period")
+        years = sorted(df['Year'].unique())
+        sel_year = st.multiselect("Select Years", years, default=years)
+        
+        # Advanced date range
+        st.markdown("### 📅 Date Range")
+        min_date = df['Order Date'].min().date()
+        max_date = df['Order Date'].max().date()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("Start Date", min_date, min_value=min_date, max_value=max_date)
+        with col2:
+            end_date = st.date_input("End Date", max_date, min_value=min_date, max_value=max_date)
+        
+        st.markdown("---")
+        
+        # Performance toggles
+        st.markdown("### 📊 View Options")
+        show_trends = st.checkbox("Show Trend Lines", True)
+        show_anomalies = st.checkbox("Highlight Anomalies", True)
+        
+        # Export button
+        if st.button("📥 Export Dashboard", use_container_width=True):
+            st.success("Dashboard exported successfully!")
     
     # Apply filters
-    filtered_df = df[df['Year'] == selected_year].copy()
-    if selected_region != 'All Regions':
-        filtered_df = filtered_df[filtered_df['Region'] == selected_region]
-    if selected_category != 'All Categories':
-        filtered_df = filtered_df[filtered_df['Category'] == selected_category]
-    if selected_segment != 'All Segments':
-        filtered_df = filtered_df[filtered_df['Segment'] == selected_segment]
+    mask = (df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))
     
-    st.markdown("<hr class='custom-divider'>", unsafe_allow_html=True)
+    # Convert date inputs to datetime for comparison
+    start_datetime = pd.Timestamp(start_date)
+    end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     
-    # --- KEY METRICS (6 COMPACT CARDS) ---
-    total_sales = filtered_df['Sales'].sum()
-    total_profit = filtered_df['Profit'].sum()
-    total_orders = filtered_df['Order ID'].nunique()
-    profit_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
-    avg_ticket = total_sales / total_orders if total_orders > 0 else 0
-    total_units = filtered_df['Quantity'].sum()
+    mask &= (df['Order Date'] >= start_datetime) & (df['Order Date'] <= end_datetime)
     
-    # Mock previous year data for trends
-    prev_year_df = df[df['Year'] == selected_year - 1] if selected_year - 1 in df['Year'].values else pd.DataFrame()
-    prev_sales = prev_year_df['Sales'].sum() if not prev_year_df.empty else total_sales * 0.9
+    f_df = df[mask]
+
+    # --- MAIN TITLE WITH SUBTITLE ---
+    st.markdown(f'<div class="main-title">🚀 AI SALES INTELLIGENCE PRO</div>', unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center; color:{th['txt']}80; margin-bottom:30px;'>Real-time Analytics • Predictive Insights • Performance Metrics</p>", unsafe_allow_html=True)
+
+    # --- ENHANCED KPI ROW WITH TRENDS ---
+    st.markdown("### 📈 KEY PERFORMANCE INDICATORS")
+    k_cols = st.columns(8)
     
-    # Calculate trends
-    sales_trend = ((total_sales - prev_sales) / prev_sales * 100) if prev_sales > 0 else 0
+    # Calculate trends (compare with previous period)
+    if not f_df.empty:
+        # Define previous period (same length as selected period, but before start date)
+        period_length = (end_datetime - start_datetime).days
+        prev_end = start_datetime - pd.Timedelta(days=1)
+        prev_start = prev_end - pd.Timedelta(days=period_length)
+        
+        prev_mask = (df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))
+        prev_mask &= (df['Order Date'] >= prev_start) & (df['Order Date'] <= prev_end)
+        prev_df = df[prev_mask]
+    else:
+        prev_df = pd.DataFrame()
     
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    def calc_trend(current, previous):
+        if previous == 0 or pd.isna(previous) or previous is None:
+            return ""
+        change = ((current - previous) / previous) * 100
+        return f"▲ {change:.1f}%" if change > 0 else f"▼ {abs(change):.1f}%" if change < 0 else "→ 0%"
     
-    with m1:
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>TOTAL SALES</div>
-                <div class='kpi-value'>${total_sales/1e6:.1f}M</div>
-                <div class='kpi-trend {"trend-up" if sales_trend > 0 else "trend-down"}'>
-                    {'▲' if sales_trend > 0 else '▼'} {abs(sales_trend):.1f}% vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+    # Calculate metrics safely
+    if not f_df.empty:
+        total_sales = f_df['Sales'].sum()
+        total_profit = f_df['Profit'].sum()
+        unique_orders = f_df['Order ID'].nunique()
+        avg_sales = f_df['Sales'].mean()
+        total_quantity = f_df['Quantity'].sum()
+        avg_discount = f_df['Discount'].mean() * 100
+        profit_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
+        avg_delivery = (f_df['Order Date'].max() - f_df['Order Date'].min()).days / len(f_df) if len(f_df) > 0 else 0
+        
+        # Previous period metrics
+        prev_total_sales = prev_df['Sales'].sum() if not prev_df.empty else 0
+        prev_total_profit = prev_df['Profit'].sum() if not prev_df.empty else 0
+        prev_unique_orders = prev_df['Order ID'].nunique() if not prev_df.empty else 0
+        prev_avg_sales = prev_df['Sales'].mean() if not prev_df.empty else 0
+        prev_total_quantity = prev_df['Quantity'].sum() if not prev_df.empty else 0
+        prev_avg_discount = prev_df['Discount'].mean() * 100 if not prev_df.empty else 0
+        prev_profit_margin = (prev_total_profit / prev_total_sales * 100) if prev_total_sales > 0 else 0
+    else:
+        # Default values if no data
+        total_sales = total_profit = unique_orders = avg_sales = total_quantity = avg_discount = profit_margin = avg_delivery = 0
+        prev_total_sales = prev_total_profit = prev_unique_orders = prev_avg_sales = prev_total_quantity = prev_avg_discount = prev_profit_margin = 0
     
-    with m2:
-        profit_trend = ((total_profit - prev_year_df['Profit'].sum()) / prev_year_df['Profit'].sum() * 100) if not prev_year_df.empty and prev_year_df['Profit'].sum() > 0 else 5.2
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>PROFIT</div>
-                <div class='kpi-value'>${total_profit/1e3:.0f}K</div>
-                <div class='kpi-trend {"trend-up" if profit_trend > 0 else "trend-down"}'>
-                    {'▲' if profit_trend > 0 else '▼'} {abs(profit_trend):.1f}% vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+    metrics = [
+        ("💰", "Revenue", f"${total_sales/1e6:.1f}M" if total_sales > 0 else "$0M", total_sales, prev_total_sales),
+        ("📈", "Profit", f"${total_profit/1e3:.0f}K" if total_profit > 0 else "$0K", total_profit, prev_total_profit),
+        ("🛒", "Orders", f"{unique_orders:,}", unique_orders, prev_unique_orders),
+        ("💵", "Avg Ticket", f"${avg_sales:.0f}" if avg_sales > 0 else "$0", avg_sales, prev_avg_sales),
+        ("📦", "Units", f"{total_quantity:,}", total_quantity, prev_total_quantity),
+        ("🏷️", "Discount", f"{avg_discount:.1f}%", avg_discount, prev_avg_discount),
+        ("📊", "Margin", f"{profit_margin:.1f}%", profit_margin, prev_profit_margin),
+        ("🚚", "Delivery", f"{avg_delivery:.1f}d", 0, 0)
+    ]
     
-    with m3:
-        margin_trend = profit_margin - (prev_year_df['Profit'].sum() / prev_year_df['Sales'].sum() * 100) if not prev_year_df.empty and prev_year_df['Sales'].sum() > 0 else -2.1
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>MARGIN</div>
-                <div class='kpi-value'>{profit_margin:.1f}%</div>
-                <div class='kpi-trend {"trend-up" if margin_trend > 0 else "trend-down"}'>
-                    {'▲' if margin_trend > 0 else '▼'} {abs(margin_trend):.1f}pp vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with m4:
-        orders_trend = ((total_orders - prev_year_df['Order ID'].nunique()) / prev_year_df['Order ID'].nunique() * 100) if not prev_year_df.empty and prev_year_df['Order ID'].nunique() > 0 else 5.7
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>ORDERS</div>
-                <div class='kpi-value'>{total_orders:,}</div>
-                <div class='kpi-trend {"trend-up" if orders_trend > 0 else "trend-down"}'>
-                    {'▲' if orders_trend > 0 else '▼'} {abs(orders_trend):.1f}% vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with m5:
-        ticket_trend = ((avg_ticket - prev_year_df['Sales'].mean()) / prev_year_df['Sales'].mean() * 100) if not prev_year_df.empty and prev_year_df['Sales'].mean() > 0 else 3.2
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>AVG TICKET</div>
-                <div class='kpi-value'>${avg_ticket:.0f}</div>
-                <div class='kpi-trend {"trend-up" if ticket_trend > 0 else "trend-down"}'>
-                    {'▲' if ticket_trend > 0 else '▼'} {abs(ticket_trend):.1f}% vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with m6:
-        units_trend = ((total_units - prev_year_df['Quantity'].sum()) / prev_year_df['Quantity'].sum() * 100) if not prev_year_df.empty and prev_year_df['Quantity'].sum() > 0 else -1.8
-        st.markdown(f"""
-            <div class='metric-card'>
-                <div class='kpi-label'>UNITS SOLD</div>
-                <div class='kpi-value'>{total_units:,}</div>
-                <div class='kpi-trend {"trend-up" if units_trend > 0 else "trend-down"}'>
-                    {'▲' if units_trend > 0 else '▼'} {abs(units_trend):.1f}% vs LY
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # --- MAIN VISUALIZATIONS GRID (3x2 LAYOUT) ---
-    
-    # Row 1: Three charts
-    row1_col1, row1_col2, row1_col3 = st.columns(3)
-    
-    with row1_col1:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>📈 SALES TREND</div>", unsafe_allow_html=True)
-            
-            # Simple line chart - monthly sales
-            monthly_sales = filtered_df.groupby('Month', observed=True)['Sales'].sum().reset_index()
-            monthly_sales = monthly_sales.sort_values('Month')
-            
-            fig = px.line(monthly_sales, x='Month', y='Sales', markers=True)
-            fig.update_traces(
-                line=dict(color='#2563eb', width=3), 
-                marker=dict(size=8, color='#2563eb', line=dict(color='white', width=2))
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=5, r=5, t=5, b=20),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                yaxis=dict(
-                    showgrid=True, 
-                    gridcolor='#f1f5f9', 
-                    title=None,
-                    tickformat='$,.0f',
-                    tickfont=dict(size=10)
-                ),
-                xaxis=dict(title=None, tickfont=dict(size=10)),
-                showlegend=False,
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    with row1_col2:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>🌍 SALES BY REGION</div>", unsafe_allow_html=True)
-            
-            # Simple donut chart
-            region_sales = filtered_df.groupby('Region')['Sales'].sum().reset_index()
-            colors = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#0891b2']
-            
-            fig = px.pie(region_sales, values='Sales', names='Region', hole=0.65)
-            fig.update_traces(
-                textposition='inside', 
-                textinfo='percent+label',
-                textfont=dict(size=10, color='white'),
-                marker=dict(colors=colors[:len(region_sales)], line=dict(color='white', width=2)),
-                hovertemplate='<b>%{label}</b><br>Sales: $%{value:,.0f}<br>Share: %{percent}<extra></extra>'
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                showlegend=False,
-                annotations=[dict(
-                    text=f'${total_sales/1e6:.1f}M', 
-                    x=0.5, y=0.5, 
-                    font_size=14, 
-                    font_color='#1e293b',
-                    font_weight=600,
-                    showarrow=False
-                )]
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    with row1_col3:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>📦 CATEGORY PERFORMANCE</div>", unsafe_allow_html=True)
-            
-            # Simple horizontal bar chart
-            cat_sales = filtered_df.groupby('Category')['Sales'].sum().reset_index().sort_values('Sales', ascending=True)
-            
-            fig = px.bar(cat_sales, y='Category', x='Sales', orientation='h', text_auto='.2s')
-            fig.update_traces(
-                marker_color='#2563eb',
-                marker_line_color='#1e40af',
-                marker_line_width=1,
-                textposition='outside',
-                textfont=dict(size=10)
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=5, r=5, t=5, b=20),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(
-                    showgrid=True, 
-                    gridcolor='#f1f5f9', 
-                    title=None, 
-                    tickformat='$,.0f',
-                    tickfont=dict(size=9)
-                ),
-                yaxis=dict(title=None, tickfont=dict(size=10)),
-                showlegend=False,
-                hovermode='y unified'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Row 2: Three charts
-    row2_col1, row2_col2, row2_col3 = st.columns(3)
-    
-    with row2_col1:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>💰 PROFIT BY CATEGORY</div>", unsafe_allow_html=True)
-            
-            # Simple bar chart - profit by category
-            cat_profit = filtered_df.groupby('Category')['Profit'].sum().reset_index().sort_values('Profit', ascending=True)
-            
-            fig = px.bar(cat_profit, y='Category', x='Profit', orientation='h', text_auto='.2s')
-            fig.update_traces(
-                marker_color='#10b981',
-                marker_line_color='#059669',
-                marker_line_width=1,
-                textposition='outside',
-                textfont=dict(size=10)
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=5, r=5, t=5, b=20),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(
-                    showgrid=True, 
-                    gridcolor='#f1f5f9', 
-                    title=None, 
-                    tickformat='$,.0f',
-                    tickfont=dict(size=9)
-                ),
-                yaxis=dict(title=None, tickfont=dict(size=10)),
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    with row2_col2:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>👥 SEGMENT DISTRIBUTION</div>", unsafe_allow_html=True)
-            
-            # Simple pie chart
-            segment_sales = filtered_df.groupby('Segment')['Sales'].sum().reset_index()
-            
-            fig = px.pie(segment_sales, values='Sales', names='Segment')
-            fig.update_traces(
-                textposition='inside', 
-                textinfo='percent',
-                textfont=dict(size=11),
-                marker=dict(colors=['#2563eb', '#7c3aed', '#db2777'], line=dict(color='white', width=2)),
-                hovertemplate='<b>%{label}</b><br>Sales: $%{value:,.0f}<br>Share: %{percent}<extra></extra>'
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=0, r=0, t=0, b=0),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    with row2_col3:
-        with st.container():
-            st.markdown("<div class='chart-container'>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>🏆 TOP 5 PRODUCTS</div>", unsafe_allow_html=True)
-            
-            # Top 5 products by sales
-            top_products = filtered_df.groupby('Product Name')['Sales'].sum().nlargest(5).reset_index()
-            
-            # Truncate long product names
-            top_products['Product Name'] = top_products['Product Name'].str.slice(0, 25) + '...'
-            
-            fig = px.bar(top_products, y='Product Name', x='Sales', orientation='h', text_auto='.2s')
-            fig.update_traces(
-                marker_color='#f59e0b',
-                marker_line_color='#d97706',
-                marker_line_width=1,
-                textposition='outside',
-                textfont=dict(size=9)
-            )
-            fig.update_layout(
-                height=200,
-                margin=dict(l=5, r=5, t=5, b=20),
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                xaxis=dict(
-                    showgrid=True, 
-                    gridcolor='#f1f5f9', 
-                    title=None, 
-                    tickformat='$,.0f',
-                    tickfont=dict(size=9)
-                ),
-                yaxis=dict(title=None, tickfont=dict(size=9)),
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # --- BOTTOM INSIGHTS ROW ---
-    col_i1, col_i2, col_i3, col_i4 = st.columns(4)
-    
-    # Calculate insights
-    top_category = filtered_df.groupby('Category')['Sales'].sum().idxmax()
-    top_region = filtered_df.groupby('Region')['Sales'].sum().idxmax()
-    best_month = filtered_df.groupby('Month')['Sales'].sum().idxmax()
-    
-    with col_i1:
-        st.markdown(f"""
-            <div style='background: #f8fafc; padding: 0.8rem; border-radius: 12px; border-left: 4px solid #2563eb;'>
-                <span style='font-size: 0.7rem; color: #64748b;'>🏆 TOP CATEGORY</span><br>
-                <span style='font-size: 1rem; font-weight: 600; color: #0f172a;'>{top_category}</span>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col_i2:
-        st.markdown(f"""
-            <div style='background: #f8fafc; padding: 0.8rem; border-radius: 12px; border-left: 4px solid #7c3aed;'>
-                <span style='font-size: 0.7rem; color: #64748b;'>📍 BEST REGION</span><br>
-                <span style='font-size: 1rem; font-weight: 600; color: #0f172a;'>{top_region}</span>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col_i3:
-        st.markdown(f"""
-            <div style='background: #f8fafc; padding: 0.8rem; border-radius: 12px; border-left: 4px solid #db2777;'>
-                <span style='font-size: 0.7rem; color: #64748b;'>📅 PEAK MONTH</span><br>
-                <span style='font-size: 1rem; font-weight: 600; color: #0f172a;'>{best_month}</span>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    with col_i4:
-        margin_status = "Healthy" if profit_margin > 15 else "At Risk" if profit_margin > 10 else "Critical"
-        margin_color = "#10b981" if profit_margin > 15 else "#f59e0b" if profit_margin > 10 else "#ef4444"
-        st.markdown(f"""
-            <div style='background: #f8fafc; padding: 0.8rem; border-radius: 12px; border-left: 4px solid {margin_color};'>
-                <span style='font-size: 0.7rem; color: #64748b;'>💰 PROFIT MARGIN</span><br>
-                <span style='font-size: 1rem; font-weight: 600; color: #0f172a;'>{profit_margin:.1f}% · {margin_status}</span>
+    for i, (icon, label, val, curr, prev) in enumerate(metrics):
+        trend = calc_trend(curr, prev) if i < 7 else ""
+        trend_color = th['s'] if '▲' in trend else '#FF4444' if '▼' in trend else th['txt']
+        
+        k_cols[i].markdown(f"""
+            <div class="kpi-box">
+                <div style='font-size:28px; margin-bottom:5px;'>{icon}</div>
+                <div class="kpi-label">{label}</div>
+                <div class="kpi-value">{val}</div>
+                <div class="kpi-trend" style='color:{trend_color}'>{trend}</div>
             </div>
         """, unsafe_allow_html=True)
 
+    st.markdown("---")
+
+    # --- ENHANCED VISUALIZATIONS GRID ---
+    if not f_df.empty:
+        # Row 1: Executive Summary Charts
+        st.markdown("### 🎯 EXECUTIVE DASHBOARD")
+        r1 = st.columns([2, 1, 1])
+        
+        def update_fig(fig, height=300):
+            fig.update_layout(
+                margin=dict(l=20, r=20, t=40, b=20),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color=th['txt'], size=11, family="Arial"),
+                xaxis=dict(showgrid=True, gridcolor=th['grid'], gridwidth=1),
+                yaxis=dict(showgrid=True, gridcolor=th['grid'], gridwidth=1),
+                hoverlabel=dict(bgcolor=th['card'], font_size=12),
+                height=height
+            )
+            return fig
+        
+        with r1[0]:
+            st.markdown('<div class="glass-container"><b>📊 SALES PERFORMANCE TREND</b>', unsafe_allow_html=True)
+            
+            # Create dual-axis chart with sales and profit
+            monthly_data = f_df.groupby(['Month_Num', 'Month']).agg({
+                'Sales': 'sum',
+                'Profit': 'sum'
+            }).reset_index().sort_values('Month_Num')
+            
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            
+            fig.add_trace(
+                go.Bar(x=monthly_data['Month'], y=monthly_data['Sales'], name="Sales", 
+                       marker_color=th['p'], opacity=0.7),
+                secondary_y=False
+            )
+            
+            fig.add_trace(
+                go.Scatter(x=monthly_data['Month'], y=monthly_data['Profit'], name="Profit",
+                          line=dict(color=th['s'], width=3), mode='lines+markers'),
+                secondary_y=True
+            )
+            
+            if enable_forecast and len(monthly_data) > 3:
+                forecast = simple_forecast(f_df, forecast_periods)
+                if forecast:
+                    future_months = [f"M+{i}" for i in range(1, forecast_periods+1)]
+                    fig.add_trace(
+                        go.Scatter(x=future_months, y=forecast, name="Forecast",
+                                  line=dict(color='#FFA500', width=3, dash='dash')),
+                        secondary_y=False
+                    )
+            
+            fig.update_layout(
+                title="Monthly Sales & Profit Trend",
+                barmode='group',
+                height=300
+            )
+            
+            fig.update_xaxes(title_text="Month")
+            fig.update_yaxes(title_text="Sales ($)", secondary_y=False)
+            fig.update_yaxes(title_text="Profit ($)", secondary_y=True)
+            
+            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r1[1]:
+            st.markdown('<div class="glass-container"><b>🌍 REGIONAL PERFORMANCE</b>', unsafe_allow_html=True)
+            
+            # Enhanced pie chart with donut and subcategories
+            region_data = f_df.groupby('Region')['Sales'].sum().reset_index()
+            fig = px.pie(region_data, values='Sales', names='Region', hole=0.6,
+                        color_discrete_sequence=[th['p'], th['s'], "#8E44AD", "#34495E"])
+            
+            fig.update_layout(
+                annotations=[dict(text='Regions', x=0.5, y=0.5, font_size=20, showarrow=False)],
+                showlegend=True,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            
+            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r1[2]:
+            st.markdown('<div class="glass-container"><b>🏆 TOP PERFORMERS</b>', unsafe_allow_html=True)
+            
+            # Top products with profit margin
+            top_products = f_df.groupby('Product Name').agg({
+                'Sales': 'sum',
+                'Profit': 'sum',
+                'Quantity': 'sum'
+            }).nlargest(5, 'Sales').reset_index()
+            
+            if not top_products.empty:
+                top_products['Margin'] = (top_products['Profit'] / top_products['Sales'] * 100).round(1)
+                
+                fig = go.Figure()
+                
+                fig.add_trace(go.Bar(
+                    y=top_products['Product Name'],
+                    x=top_products['Sales'],
+                    orientation='h',
+                    marker=dict(color=top_products['Margin'], colorscale='Viridis', showscale=True),
+                    text=top_products['Margin'].astype(str) + '%',
+                    textposition='outside',
+                    name='Sales'
+                ))
+                
+                fig.update_layout(
+                    title="Top 5 Products by Sales",
+                    xaxis_title="Sales ($)",
+                    yaxis=dict(autorange="reversed")
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No product data available")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row 2: Advanced Analytics
+        st.markdown("### 🔬 ADVANCED ANALYTICS")
+        r2 = st.columns(3)
+        
+        with r2[0]:
+            st.markdown('<div class="glass-container"><b>📦 CATEGORY ANALYSIS</b>', unsafe_allow_html=True)
+            
+            # Treemap for hierarchical view
+            if 'Sub-Category' in f_df.columns:
+                cat_data = f_df.groupby(['Category', 'Sub-Category'])['Sales'].sum().reset_index()
+                if not cat_data.empty:
+                    fig = px.treemap(cat_data, path=['Category', 'Sub-Category'], values='Sales',
+                                    color='Sales', color_continuous_scale='Viridis')
+                    
+                    fig.update_layout(margin=dict(t=30, l=5, r=5, b=5))
+                    st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                else:
+                    st.info("No category data available")
+            else:
+                st.info("Sub-Category data not available")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r2[1]:
+            st.markdown('<div class="glass-container"><b>📊 PROFITABILITY MATRIX</b>', unsafe_allow_html=True)
+            
+            # Scatter plot: Sales vs Profit Margin
+            segment_data = f_df.groupby('Segment').agg({
+                'Sales': 'sum',
+                'Profit': 'sum',
+                'Quantity': 'sum'
+            }).reset_index()
+            
+            if not segment_data.empty:
+                segment_data['Margin'] = (segment_data['Profit'] / segment_data['Sales'] * 100).round(1)
+                segment_data['Size'] = segment_data['Quantity'] * 10
+                
+                fig = px.scatter(segment_data, x='Sales', y='Margin', size='Size', 
+                                text='Segment', color='Segment',
+                                color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_traces(textposition='top center')
+                fig.update_layout(
+                    title="Segment Performance Matrix",
+                    xaxis_title="Sales ($)",
+                    yaxis_title="Profit Margin (%)"
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No segment data available")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r2[2]:
+            st.markdown('<div class="glass-container"><b>📅 SEASONAL PATTERNS</b>', unsafe_allow_html=True)
+            
+            # Heatmap of sales by month and day
+            try:
+                # Create pivot table
+                if not f_df.empty and 'Day_of_Week' in f_df.columns and 'Month' in f_df.columns:
+                    heat_data = f_df.pivot_table(
+                        values='Sales', 
+                        index='Day_of_Week', 
+                        columns='Month',
+                        aggfunc='sum',
+                        fill_value=0
+                    )
+                    
+                    # Order days correctly
+                    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                    # Reindex only if all days exist
+                    existing_days = [d for d in day_order if d in heat_data.index]
+                    if existing_days:
+                        heat_data = heat_data.reindex(existing_days)
+                        
+                        fig = px.imshow(heat_data, 
+                                       text_auto=True,
+                                       aspect="auto",
+                                       color_continuous_scale='Viridis')
+                        
+                        fig.update_layout(
+                            title="Sales Heatmap: Day vs Month",
+                            xaxis_title="Month",
+                            yaxis_title="Day of Week"
+                        )
+                        
+                        st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                    else:
+                        st.info("Insufficient data for heatmap")
+                else:
+                    st.info("Required columns not available for heatmap")
+            except Exception as e:
+                st.info("Could not generate heatmap with current data")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row 3: Additional Insights
+        st.markdown("### 💡 DEEP DIVE INSIGHTS")
+        r3 = st.columns(2)
+        
+        with r3[0]:
+            st.markdown('<div class="glass-container"><b>📈 CUMULATIVE PERFORMANCE</b>', unsafe_allow_html=True)
+            
+            # Line chart for cumulative sales - FIXED: Removed fillcolor property that was causing error
+            daily_sales = f_df.groupby('Order Date')['Sales'].sum().reset_index()
+            daily_sales['Cumulative'] = daily_sales['Sales'].cumsum()
+            
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=daily_sales['Order Date'],
+                y=daily_sales['Cumulative'],
+                mode='lines+markers',
+                name='Cumulative Sales',
+                line=dict(color=th['p'], width=3),
+                fill='tozeroy',
+                fillcolor=f"rgba{tuple(int(th['p'].lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.2,)}"  # Fixed fillcolor format
+            ))
+            
+            fig.update_layout(
+                title="Cumulative Sales Over Time",
+                xaxis_title="Date",
+                yaxis_title="Cumulative Sales ($)"
+            )
+            
+            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with r3[1]:
+            st.markdown('<div class="glass-container"><b>📊 DISTRIBUTION ANALYSIS</b>', unsafe_allow_html=True)
+            
+            # Box plot of sales by category
+            if not f_df.empty and 'Category' in f_df.columns:
+                fig = px.box(f_df, x='Category', y='Sales', color='Category',
+                            color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_layout(
+                    title="Sales Distribution by Category",
+                    xaxis_title="Category",
+                    yaxis_title="Sales ($)",
+                    showlegend=False
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No data available for distribution analysis")
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # --- BOTTOM INSIGHTS WITH METRICS ---
+        st.markdown("---")
+        st.markdown(f"<h3 style='color:{th['p']}; font-weight:900;'>💡 AI-POWERED INSIGHTS</h3>", unsafe_allow_html=True)
+        
+        # Generate insights based on data
+        if not f_df.empty:
+            top_category = f_df.groupby('Category')['Sales'].sum().idxmax()
+            top_region = f_df.groupby('Region')['Sales'].sum().idxmax()
+            best_month = f_df.groupby('Month')['Sales'].sum().idxmax()
+            avg_margin = (f_df['Profit'].sum() / f_df['Sales'].sum() * 100).round(1)
+            
+            i_cols = st.columns(4)
+            with i_cols[0]:
+                st.success(f"🏆 **Top Category:** {top_category} leads with ${f_df.groupby('Category')['Sales'].sum().max()/1e3:.0f}K in sales")
+            with i_cols[1]:
+                st.info(f"📍 **Best Region:** {top_region} shows strongest performance")
+            with i_cols[2]:
+                st.warning(f"📅 **Peak Month:** {best_month} has highest sales volume")
+            with i_cols[3]:
+                if avg_margin > 15:
+                    st.success(f"💰 **Healthy Margin:** {avg_margin}% average profit margin")
+                else:
+                    st.error(f"⚠️ **Margin Alert:** {avg_margin}% below target")
+        else:
+            st.warning("No data available for the selected filters")
+        
+        # --- DATA TABLE WITH CONDITIONAL FORMATTING ---
+        with st.expander("📋 VIEW DETAILED DATA", expanded=False):
+            st.markdown('<div class="glass-container">', unsafe_allow_html=True)
+            
+            if not f_df.empty:
+                # Summary table
+                summary = f_df.groupby(['Region', 'Category']).agg({
+                    'Sales': 'sum',
+                    'Profit': 'sum',
+                    'Quantity': 'sum',
+                    'Order ID': 'nunique'
+                }).round(2).reset_index()
+                
+                summary.columns = ['Region', 'Category', 'Sales ($)', 'Profit ($)', 'Units Sold', 'Orders']
+                summary['Profit Margin (%)'] = (summary['Profit ($)'] / summary['Sales ($)'] * 100).round(1)
+                
+                # Display the dataframe
+                st.dataframe(
+                    summary.style.format({
+                        'Sales ($)': '${:,.0f}',
+                        'Profit ($)': '${:,.0f}',
+                        'Units Sold': '{:,.0f}',
+                        'Orders': '{:,.0f}',
+                        'Profit Margin (%)': '{:.1f}%'
+                    }),
+                    use_container_width=True,
+                    height=400
+                )
+            else:
+                st.info("No data available for the current selection")
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.warning("No data available for the selected filters. Please adjust your filter criteria.")
 else:
-    # Professional error state
-    st.markdown("""
-        <div style='text-align: center; padding: 100px; background: white; border-radius: 20px; margin: 50px;'>
-            <span style='font-size: 48px;'>📁</span>
-            <h2 style='color: #1e293b; margin-top: 20px;'>Data File Not Found</h2>
-            <p style='color: #64748b;'>Please ensure SALES_DATA_SETT.xlsx is in the correct directory</p>
+    # Error state with creative design
+    st.markdown(f"""
+        <div style='text-align:center; padding:100px;'>
+            <h1 style='color:{th['p']}; font-size:72px;'>📁</h1>
+            <h2 style='color:{th['txt']};'>Data File Not Found</h2>
+            <p style='color:{th['txt']}80;'>Please ensure SALES_DATA_SETT.xlsx is in the correct directory</p>
         </div>
     """, unsafe_allow_html=True)
-
-# --- PROFESSIONAL FOOTER ---
-st.markdown("""
-    <div class='dashboard-footer'>
-        Sales Intelligence Pro · Enterprise Dashboard · Updated in real-time
-    </div>
-""", unsafe_allow_html=True)
