@@ -105,7 +105,6 @@ st.markdown(f"""
         }}
         .kpi-trend {{
             font-size: 12px;
-            color: #00ff00;
             margin-top: 5px;
         }}
         
@@ -243,7 +242,7 @@ if not df.empty:
         years = sorted(df['Year'].unique())
         sel_year = st.multiselect("Select Years", years, default=years)
         
-        # Advanced date range - FIXED: Handle the date input properly
+        # Advanced date range
         st.markdown("### 📅 Date Range")
         min_date = df['Order Date'].min().date()
         max_date = df['Order Date'].max().date()
@@ -265,12 +264,12 @@ if not df.empty:
         if st.button("📥 Export Dashboard", use_container_width=True):
             st.success("Dashboard exported successfully!")
     
-    # Apply filters - FIXED: Proper date comparison
+    # Apply filters
     mask = (df['Region'].isin(sel_region)) & (df['Category'].isin(sel_cat)) & (df['Year'].isin(sel_year))
     
     # Convert date inputs to datetime for comparison
     start_datetime = pd.Timestamp(start_date)
-    end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)  # Include the entire end date
+    end_datetime = pd.Timestamp(end_date) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
     
     mask &= (df['Order Date'] >= start_datetime) & (df['Order Date'] <= end_datetime)
     
@@ -284,7 +283,7 @@ if not df.empty:
     st.markdown("### 📈 KEY PERFORMANCE INDICATORS")
     k_cols = st.columns(8)
     
-    # Calculate trends (compare with previous period) - FIXED: Proper date range for previous period
+    # Calculate trends (compare with previous period)
     if not f_df.empty:
         # Define previous period (same length as selected period, but before start date)
         period_length = (end_datetime - start_datetime).days
@@ -445,27 +444,30 @@ if not df.empty:
                 'Quantity': 'sum'
             }).nlargest(5, 'Sales').reset_index()
             
-            top_products['Margin'] = (top_products['Profit'] / top_products['Sales'] * 100).round(1)
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Bar(
-                y=top_products['Product Name'],
-                x=top_products['Sales'],
-                orientation='h',
-                marker=dict(color=top_products['Margin'], colorscale='Viridis', showscale=True),
-                text=top_products['Margin'].astype(str) + '%',
-                textposition='outside',
-                name='Sales'
-            ))
-            
-            fig.update_layout(
-                title="Top 5 Products by Sales",
-                xaxis_title="Sales ($)",
-                yaxis=dict(autorange="reversed")
-            )
-            
-            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            if not top_products.empty:
+                top_products['Margin'] = (top_products['Profit'] / top_products['Sales'] * 100).round(1)
+                
+                fig = go.Figure()
+                
+                fig.add_trace(go.Bar(
+                    y=top_products['Product Name'],
+                    x=top_products['Sales'],
+                    orientation='h',
+                    marker=dict(color=top_products['Margin'], colorscale='Viridis', showscale=True),
+                    text=top_products['Margin'].astype(str) + '%',
+                    textposition='outside',
+                    name='Sales'
+                ))
+                
+                fig.update_layout(
+                    title="Top 5 Products by Sales",
+                    xaxis_title="Sales ($)",
+                    yaxis=dict(autorange="reversed")
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No product data available")
             st.markdown('</div>', unsafe_allow_html=True)
         
         # Row 2: Advanced Analytics
@@ -478,11 +480,14 @@ if not df.empty:
             # Treemap for hierarchical view
             if 'Sub-Category' in f_df.columns:
                 cat_data = f_df.groupby(['Category', 'Sub-Category'])['Sales'].sum().reset_index()
-                fig = px.treemap(cat_data, path=['Category', 'Sub-Category'], values='Sales',
-                                color='Sales', color_continuous_scale='Viridis')
-                
-                fig.update_layout(margin=dict(t=30, l=5, r=5, b=5))
-                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                if not cat_data.empty:
+                    fig = px.treemap(cat_data, path=['Category', 'Sub-Category'], values='Sales',
+                                    color='Sales', color_continuous_scale='Viridis')
+                    
+                    fig.update_layout(margin=dict(t=30, l=5, r=5, b=5))
+                    st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                else:
+                    st.info("No category data available")
             else:
                 st.info("Sub-Category data not available")
             st.markdown('</div>', unsafe_allow_html=True)
@@ -497,21 +502,24 @@ if not df.empty:
                 'Quantity': 'sum'
             }).reset_index()
             
-            segment_data['Margin'] = (segment_data['Profit'] / segment_data['Sales'] * 100).round(1)
-            segment_data['Size'] = segment_data['Quantity'] * 10
-            
-            fig = px.scatter(segment_data, x='Sales', y='Margin', size='Size', 
-                            text='Segment', color='Segment',
-                            color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
-            
-            fig.update_traces(textposition='top center')
-            fig.update_layout(
-                title="Segment Performance Matrix",
-                xaxis_title="Sales ($)",
-                yaxis_title="Profit Margin (%)"
-            )
-            
-            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            if not segment_data.empty:
+                segment_data['Margin'] = (segment_data['Profit'] / segment_data['Sales'] * 100).round(1)
+                segment_data['Size'] = segment_data['Quantity'] * 10
+                
+                fig = px.scatter(segment_data, x='Sales', y='Margin', size='Size', 
+                                text='Segment', color='Segment',
+                                color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_traces(textposition='top center')
+                fig.update_layout(
+                    title="Segment Performance Matrix",
+                    xaxis_title="Sales ($)",
+                    yaxis_title="Profit Margin (%)"
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No segment data available")
             st.markdown('</div>', unsafe_allow_html=True)
         
         with r2[2]:
@@ -520,35 +528,38 @@ if not df.empty:
             # Heatmap of sales by month and day
             try:
                 # Create pivot table
-                heat_data = f_df.pivot_table(
-                    values='Sales', 
-                    index='Day_of_Week', 
-                    columns='Month',
-                    aggfunc='sum',
-                    fill_value=0
-                )
-                
-                # Order days correctly
-                day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-                # Reindex only if all days exist
-                existing_days = [d for d in day_order if d in heat_data.index]
-                if existing_days:
-                    heat_data = heat_data.reindex(existing_days)
-                    
-                    fig = px.imshow(heat_data, 
-                                   text_auto=True,
-                                   aspect="auto",
-                                   color_continuous_scale='Viridis')
-                    
-                    fig.update_layout(
-                        title="Sales Heatmap: Day vs Month",
-                        xaxis_title="Month",
-                        yaxis_title="Day of Week"
+                if not f_df.empty and 'Day_of_Week' in f_df.columns and 'Month' in f_df.columns:
+                    heat_data = f_df.pivot_table(
+                        values='Sales', 
+                        index='Day_of_Week', 
+                        columns='Month',
+                        aggfunc='sum',
+                        fill_value=0
                     )
                     
-                    st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                    # Order days correctly
+                    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                    # Reindex only if all days exist
+                    existing_days = [d for d in day_order if d in heat_data.index]
+                    if existing_days:
+                        heat_data = heat_data.reindex(existing_days)
+                        
+                        fig = px.imshow(heat_data, 
+                                       text_auto=True,
+                                       aspect="auto",
+                                       color_continuous_scale='Viridis')
+                        
+                        fig.update_layout(
+                            title="Sales Heatmap: Day vs Month",
+                            xaxis_title="Month",
+                            yaxis_title="Day of Week"
+                        )
+                        
+                        st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+                    else:
+                        st.info("Insufficient data for heatmap")
                 else:
-                    st.info("Insufficient data for heatmap")
+                    st.info("Required columns not available for heatmap")
             except Exception as e:
                 st.info("Could not generate heatmap with current data")
             
@@ -561,7 +572,7 @@ if not df.empty:
         with r3[0]:
             st.markdown('<div class="glass-container"><b>📈 CUMULATIVE PERFORMANCE</b>', unsafe_allow_html=True)
             
-            # Waterfall chart for cumulative sales
+            # Line chart for cumulative sales - FIXED: Removed fillcolor property that was causing error
             daily_sales = f_df.groupby('Order Date')['Sales'].sum().reset_index()
             daily_sales['Cumulative'] = daily_sales['Sales'].cumsum()
             
@@ -574,7 +585,7 @@ if not df.empty:
                 name='Cumulative Sales',
                 line=dict(color=th['p'], width=3),
                 fill='tozeroy',
-                fillcolor=f"{th['p']}20"
+                fillcolor=f"rgba{tuple(int(th['p'].lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (0.2,)}"  # Fixed fillcolor format
             ))
             
             fig.update_layout(
@@ -590,17 +601,20 @@ if not df.empty:
             st.markdown('<div class="glass-container"><b>📊 DISTRIBUTION ANALYSIS</b>', unsafe_allow_html=True)
             
             # Box plot of sales by category
-            fig = px.box(f_df, x='Category', y='Sales', color='Category',
-                        color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
-            
-            fig.update_layout(
-                title="Sales Distribution by Category",
-                xaxis_title="Category",
-                yaxis_title="Sales ($)",
-                showlegend=False
-            )
-            
-            st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            if not f_df.empty and 'Category' in f_df.columns:
+                fig = px.box(f_df, x='Category', y='Sales', color='Category',
+                            color_discrete_sequence=[th['p'], th['s'], "#8E44AD"])
+                
+                fig.update_layout(
+                    title="Sales Distribution by Category",
+                    xaxis_title="Category",
+                    yaxis_title="Sales ($)",
+                    showlegend=False
+                )
+                
+                st.plotly_chart(update_fig(fig, 300), use_container_width=True)
+            else:
+                st.info("No data available for distribution analysis")
             st.markdown('</div>', unsafe_allow_html=True)
         
         # --- BOTTOM INSIGHTS WITH METRICS ---
