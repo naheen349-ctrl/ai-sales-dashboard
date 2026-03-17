@@ -6,6 +6,16 @@ from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
 
+# --- HELPER FUNCTIONS (MUST BE DEFINED FIRST) ---
+def adjust_color(color, amount):
+    """Helper function to adjust color brightness"""
+    if color.startswith('#'):
+        color = color.lstrip('#')
+        rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+        rgb = tuple(min(255, max(0, c + amount)) for c in rgb)
+        return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+    return color
+
 # --- PAGE CONFIG ---
 st.set_page_config(
     page_title="AI Sales Intelligence Pro", 
@@ -153,17 +163,18 @@ st.markdown(f"""
             transform: translateY(-2px);
             box-shadow: 0 5px 15px {th['p']}80 !important;
         }}
+        
+        /* Dataframe styling */
+        .dataframe {{
+            font-size: 12px;
+        }}
+        .dataframe th {{
+            background-color: {th['p']} !important;
+            color: white !important;
+            font-weight: 600 !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
-
-def adjust_color(color, amount):
-    """Helper function to adjust color brightness"""
-    if color.startswith('#'):
-        color = color.lstrip('#')
-        rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
-        rgb = tuple(min(255, max(0, c + amount)) for c in rgb)
-        return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
-    return color
 
 # --- DATA LOADING WITH ENHANCEMENTS ---
 @st.cache_data
@@ -465,6 +476,7 @@ if not df.empty:
         st.markdown('<div class="glass-container"><b>📅 SEASONAL PATTERNS</b>', unsafe_allow_html=True)
         
         # Heatmap of sales by month and day
+        # Create pivot table
         heat_data = f_df.pivot_table(
             values='Sales', 
             index='Day_of_Week', 
@@ -475,7 +487,9 @@ if not df.empty:
         
         # Order days correctly
         day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-        heat_data = heat_data.reindex(day_order)
+        # Reindex only if all days exist
+        existing_days = [d for d in day_order if d in heat_data.index]
+        heat_data = heat_data.reindex(existing_days)
         
         fig = px.imshow(heat_data, 
                        text_auto=True,
@@ -545,54 +559,58 @@ if not df.empty:
     st.markdown(f"<h3 style='color:{th['p']}; font-weight:900;'>💡 AI-POWERED INSIGHTS</h3>", unsafe_allow_html=True)
     
     # Generate insights based on data
-    top_category = f_df.groupby('Category')['Sales'].sum().idxmax()
-    top_region = f_df.groupby('Region')['Sales'].sum().idxmax()
-    best_month = f_df.groupby('Month')['Sales'].sum().idxmax()
-    avg_margin = (f_df['Profit'].sum() / f_df['Sales'].sum() * 100).round(1)
-    
-    i_cols = st.columns(4)
-    with i_cols[0]:
-        st.success(f"🏆 **Top Category:** {top_category} leads with ${f_df.groupby('Category')['Sales'].sum().max()/1e3:.0f}K in sales")
-    with i_cols[1]:
-        st.info(f"📍 **Best Region:** {top_region} shows strongest performance")
-    with i_cols[2]:
-        st.warning(f"📅 **Peak Month:** {best_month} has highest sales volume")
-    with i_cols[3]:
-        if avg_margin > 15:
-            st.success(f"💰 **Healthy Margin:** {avg_margin}% average profit margin")
-        else:
-            st.error(f"⚠️ **Margin Alert:** {avg_margin}% below target")
+    if not f_df.empty:
+        top_category = f_df.groupby('Category')['Sales'].sum().idxmax()
+        top_region = f_df.groupby('Region')['Sales'].sum().idxmax()
+        best_month = f_df.groupby('Month')['Sales'].sum().idxmax()
+        avg_margin = (f_df['Profit'].sum() / f_df['Sales'].sum() * 100).round(1)
+        
+        i_cols = st.columns(4)
+        with i_cols[0]:
+            st.success(f"🏆 **Top Category:** {top_category} leads with ${f_df.groupby('Category')['Sales'].sum().max()/1e3:.0f}K in sales")
+        with i_cols[1]:
+            st.info(f"📍 **Best Region:** {top_region} shows strongest performance")
+        with i_cols[2]:
+            st.warning(f"📅 **Peak Month:** {best_month} has highest sales volume")
+        with i_cols[3]:
+            if avg_margin > 15:
+                st.success(f"💰 **Healthy Margin:** {avg_margin}% average profit margin")
+            else:
+                st.error(f"⚠️ **Margin Alert:** {avg_margin}% below target")
+    else:
+        st.warning("No data available for the selected filters")
     
     # --- DATA TABLE WITH CONDITIONAL FORMATTING ---
     with st.expander("📋 VIEW DETAILED DATA", expanded=False):
         st.markdown('<div class="glass-container">', unsafe_allow_html=True)
         
-        # Summary table
-        summary = f_df.groupby(['Region', 'Category']).agg({
-            'Sales': 'sum',
-            'Profit': 'sum',
-            'Quantity': 'sum',
-            'Order ID': 'nunique'
-        }).round(2).reset_index()
+        if not f_df.empty:
+            # Summary table
+            summary = f_df.groupby(['Region', 'Category']).agg({
+                'Sales': 'sum',
+                'Profit': 'sum',
+                'Quantity': 'sum',
+                'Order ID': 'nunique'
+            }).round(2).reset_index()
+            
+            summary.columns = ['Region', 'Category', 'Sales ($)', 'Profit ($)', 'Units Sold', 'Orders']
+            summary['Profit Margin (%)'] = (summary['Profit ($)'] / summary['Sales ($)'] * 100).round(1)
+            
+            # Display the dataframe
+            st.dataframe(
+                summary.style.format({
+                    'Sales ($)': '${:,.0f}',
+                    'Profit ($)': '${:,.0f}',
+                    'Units Sold': '{:,.0f}',
+                    'Orders': '{:,.0f}',
+                    'Profit Margin (%)': '{:.1f}%'
+                }),
+                use_container_width=True,
+                height=400
+            )
+        else:
+            st.info("No data available for the current selection")
         
-        summary.columns = ['Region', 'Category', 'Sales ($)', 'Profit ($)', 'Units Sold', 'Orders']
-        summary['Profit Margin (%)'] = (summary['Profit ($)'] / summary['Sales ($)'] * 100).round(1)
-        
-        # Apply styling
-        def color_profit_margin(val):
-            color = 'green' if val > 15 else 'orange' if val > 10 else 'red'
-            return f'color: {color}'
-        
-        styled_summary = summary.style.applymap(color_profit_margin, subset=['Profit Margin (%)'])
-        styled_summary.format({
-            'Sales ($)': '${:,.0f}',
-            'Profit ($)': '${:,.0f}',
-            'Units Sold': '{:,.0f}',
-            'Orders': '{:,.0f}',
-            'Profit Margin (%)': '{:.1f}%'
-        })
-        
-        st.dataframe(styled_summary, use_container_width=True, height=400)
         st.markdown('</div>', unsafe_allow_html=True)
 
 else:
